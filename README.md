@@ -33,6 +33,13 @@ streamlit run app.py
 Taruh semua key di Settings > Secrets (format TOML). Tambahkan `APP_ACCESS_CODE = "kode-rahasia"`
 agar app hanya bisa dibuka orang yang tahu kodenya. Jangan commit `.env` atau `secrets.toml`.
 
+## Branch dan Pull Request GitHub
+Fitur **GitHub · Buat branch & Pull Request** memakai `GITHUB_TOKEN` dan opsional `GITHUB_REPOSITORY`
+(di `.env` atau Streamlit secrets). Gunakan fine-grained token dengan akses **Contents: read/write**,
+**Pull requests: read/write**, dan **Metadata: read** hanya pada repositori yang diperlukan.
+Pilih file konteks dan instruksi; AI menyiapkan diff untuk ditinjau. Branch, commit, dan PR baru
+terbentuk setelah pengguna menyetujui diff. Token tidak dikirim ke model.
+
 ## Tes
 ```
 python -m unittest discover -s tests -t .   # tanpa butuh API key
