@@ -75,9 +75,10 @@ def model_for(provider: str) -> str:
 #   ("skeptic", "xkiro"): "deepseek/<nama-model>",
 #   ("expert", "xkiro"): "anthropic/<nama-model>",
 ROLE_MODELS = {
-    # Model kecil non-reasoning untuk tugas ringan, supaya cepat dan hemat kuota.
-    ("orchestrator", "groq"): "llama-3.1-8b-instant",
-    ("researcher", "groq"): "llama-3.1-8b-instant",
+    # Model kecil untuk tugas ringan, supaya cepat dan hemat kuota.
+    # llama-3.1-8b-instant sudah dipensiunkan Groq (16 Agustus 2026); penggantinya gpt-oss-20b.
+    ("orchestrator", "groq"): "openai/gpt-oss-20b",
+    ("researcher", "groq"): "openai/gpt-oss-20b",
 }
 
 # Rute fallback per peran: provider pertama dicoba dulu, kalau gagal lanjut ke berikutnya.
