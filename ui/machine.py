@@ -104,13 +104,27 @@ def _split(text: str, width: int = 12) -> list:
 def _qpath(a: tuple, b: tuple, k: float) -> tuple:
     """Kabel halus antarkartu; masuk/keluar dari tepi kartu, bukan menembus tengahnya."""
     dx, dy = b[0] - a[0], b[1] - a[1]
-    width, height = 154 / 2, 72 / 2
+    width, height = 190 / 2, 90 / 2
     scale = min(width / max(abs(dx), 1), height / max(abs(dy), 1))
     x1, y1 = a[0] + dx * scale, a[1] + dy * scale
     x2, y2 = b[0] - dx * scale, b[1] - dy * scale
     mx = (x1 + x2) / 2
     path = f"M{x1:.0f},{y1:.0f} C{mx:.0f},{y1:.0f} {mx:.0f},{y2:.0f} {x2:.0f},{y2:.0f}"
     return path, mx, (y1 + y2) / 2
+
+
+def _wire(path: str, state: str) -> str:
+    """Kabel berlapis neon dengan partikel listrik yang terus bergerak di sepanjang jalur."""
+    if state in ("skip",):
+        return f'<path class="aog-e aog-e-{state}" d="{path}"></path>'
+    return (f'<path class="aog-e-glow aog-e-{state}" d="{path}"></path>'
+            f'<path class="aog-e aog-e-{state}" d="{path}"></path>'
+            f'<circle class="aog-e-particle aog-p-{state}" r="3.2">'
+            f'<animateMotion dur="2.4s" repeatCount="indefinite" path="{path}"></animateMotion>'
+            '</circle>'
+            f'<circle class="aog-e-particle aog-p-soft aog-p-{state}" r="1.8">'
+            f'<animateMotion dur="3.7s" begin="-1.1s" repeatCount="indefinite" path="{path}"></animateMotion>'
+            '</circle>')
 
 
 def mesh_points() -> tuple:
@@ -147,7 +161,7 @@ def _cube(flow, name: str) -> str:
     cx, cy = CUBES[name]
     state = node_state(flow, name)
     g = NODES[name]
-    width, height = 154, 72
+    width, height = 190, 90
     x, y = cx - width / 2, cy - height / 2
     label = g["label"]
     sub = flow.notes.get(name) or g["sub"]
@@ -170,8 +184,8 @@ def _cube(flow, name: str) -> str:
 def _terminal(flow, name: str, cx: int, cy: int, label: str, sub: str) -> str:
     """Kartu input/output pada kanvas utama, agar alur berawal dan berakhir di diagram."""
     state = norm(flow.state(name))
-    x, y, w, h = cx - 77, cy - 36, 154, 72
-    return (f'<g class="aog-c aog-terminal aog-c-{state}">'
+    x, y, w, h = cx - 95, cy - 45, 190, 90
+    return (f'<g class="aog-c aog-terminal aog-terminal-{name} aog-c-{state}">'
             f'<rect class="f-card" x="{x}" y="{y}" width="{w}" height="{h}" rx="13"></rect>'
             f'<rect class="f-inset" x="{x + 5}" y="{y + 5}" width="{w - 10}" height="{h - 10}" rx="10"></rect>'
             f'<circle class="f-dot" cx="{x + 17}" cy="{cy}" r="4"></circle>'
@@ -202,7 +216,7 @@ def _gdiamond(cx, cy, hw, hh, label, state) -> str:
 
 
 def _gedge(d: str, state: str, label: str = "", lx: float = 0, ly: float = 0) -> str:
-    out = f'<path class="aog-e aog-e-{state}" d="{d}" marker-end="url(#mArr-{state})"></path>'
+    out = _wire(d, state)
     if label:
         out += f'<text class="aog-el aog-el-{state}" x="{lx}" y="{ly}">{_esc(label)}</text>'
     return out
@@ -288,14 +302,14 @@ def render(flow) -> str:
                            ("verifier", "answer", CUBES["verifier"], (600, 505))):
         state = edge_cls(node_state(flow, src), node_state(flow, dst))
         path, _, _ = _qpath(a, b, 0)
-        parts.append(f'<path class="aog-e aog-e-{state}" d="{path}"></path>')
+        parts.append(_wire(path, state))
     for src, dst, label, bias in CUBE_EDGES:
         a, b = CUBES[src], CUBES[dst]
         state = edge_cls(node_state(flow, src), node_state(flow, dst))
         if src == "verifier":  # sisi revisi hanya menyala bila memang ada putaran ulang
             state = "hot" if flow.attempt > 0 else "idle"
         path, lx, ly = _qpath(a, b, bias)
-        parts.append(f'<path class="aog-e aog-e-{state}" d="{path}"></path>')
+        parts.append(_wire(path, state))
         if label:
             parts.append(f'<text class="aog-el aog-el-{state}" x="{lx:.0f}" y="{ly - 6:.0f}">'
                          f'{_esc(label)}</text>')
@@ -322,12 +336,12 @@ CSS = """
 .aog-mesh-live circle { fill:#42d9ff; animation:aogblink 1.4s ease-in-out infinite; }
 
 .aog-c text { font-family:Inter,ui-sans-serif,system-ui,sans-serif; pointer-events:none; }
-.aog-c .f-card { fill:#101532; stroke:#7661ff; stroke-width:1.8; transition:all .35s ease; }
-.aog-c .f-inset { fill:#171c48; fill-opacity:.9; stroke:#5a49d4; stroke-width:1; }
+.aog-c .f-card { fill:#101532; stroke:#7661ff; stroke-width:2.2; transition:all .35s ease; }
+.aog-c .f-inset { fill:#171c48; fill-opacity:.9; stroke:#5a49d4; stroke-width:1.2; }
 .aog-c .f-dot { fill:#46dcff; filter:url(#aogGlow); }
-.aog-c .c-lb { font-size:12px; font-weight:750; fill:#f3f2ff; }
-.aog-c .c-st { font-size:8px; font-weight:700; fill:#a9b8e5; }
-.aog-c .c-sb { font-size:9px; fill:#9da9d8; }
+.aog-c .c-lb { font-size:14px; font-weight:750; fill:#f3f2ff; }
+.aog-c .c-st { font-size:9px; font-weight:700; fill:#a9b8e5; }
+.aog-c .c-sb { font-size:10px; fill:#9da9d8; }
 .aog-agent-orchestrator .f-card, .aog-agent-verifier .f-card { stroke:#36cfff; }
 .aog-agent-orchestrator .f-inset, .aog-agent-verifier .f-inset { stroke:#198dcf; fill:#102955; }
 .aog-agent-researcher .f-card, .aog-agent-skeptic .f-card { stroke:#d45bff; }
@@ -336,6 +350,10 @@ CSS = """
 .aog-agent-analyst .f-inset, .aog-agent-expert .f-inset { stroke:#ed772b; fill:#3b1d26; }
 .aog-agent-synthesizer .f-card { stroke:#ff5ca8; }
 .aog-agent-synthesizer .f-inset { stroke:#ce378c; fill:#321638; }
+.aog-terminal-start .f-card { stroke:#ff9e43; }
+.aog-terminal-start .f-inset { stroke:#da6634; fill:#3c201d; }
+.aog-terminal-answer .f-card { stroke:#ff6ba9; }
+.aog-terminal-answer .f-inset { stroke:#ce438d; fill:#321839; }
 .aog-c-pending .f-card { fill:#0c1128; stroke-opacity:.82; }
 .aog-c-pending .f-inset { fill:#111631; }
 .aog-c-running { filter:url(#aogGlow); }
