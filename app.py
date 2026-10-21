@@ -179,7 +179,25 @@ draw()
 # ---------- Kiri: chat ----------
 with left:
     chat_box = st.container(height=560, border=False)
-    question = st.chat_input("Tanyakan sesuatu ke AOGx Council…")
+    # Native chat composer supports attachment cards (PDF/gambar) where available.
+    try:
+        submitted = st.chat_input(
+            "Kirim pesan ke AOGx Council…",
+            accept_file="multiple",
+            file_type=["pdf", "png", "jpg", "jpeg", "webp", "txt", "md"],
+        )
+    except TypeError:  # kompatibel dengan Streamlit lama
+        submitted = st.chat_input("Kirim pesan ke AOGx Council…")
+    question = ""
+    if submitted is not None:
+        if hasattr(submitted, "text"):
+            question = (submitted.text or "").strip()
+            attachments = list(submitted.files or [])
+            if attachments:
+                names = ", ".join(f.name for f in attachments)
+                question = (question + "\n\n" if question else "") + f"Lampiran: {names}"
+        else:
+            question = str(submitted).strip()
 
 with chat_box:
     if not ss.messages and not question:
