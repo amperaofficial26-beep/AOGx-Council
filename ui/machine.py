@@ -17,14 +17,14 @@ HUB = (345.0, 300.0)
 
 # Pusat tiap kubus (7 agen Council).
 CUBES = {
-    # Susunan node berbentuk baris/kolom seperti diagram workflow neon pada referensi.
+    # Tata letak kartu pipeline mengikuti komposisi bertingkat pada gambar referensi.
     "orchestrator": (120, 125),
-    "researcher":   (360, 125),
-    "analyst":      (600, 125),
-    "skeptic":      (120, 315),
-    "expert":       (360, 315),
+    "researcher":   (365, 125),
+    "expert":       (600, 125),
+    "analyst":      (120, 315),
+    "skeptic":      (365, 315),
     "synthesizer":  (600, 315),
-    "verifier":     (360, 505),
+    "verifier":     (365, 505),
 }
 
 # (asal, tujuan, label, bias lengkung). bias > 0 melengkung ke hub, < 0 menjauh.
@@ -167,6 +167,19 @@ def _cube(flow, name: str) -> str:
     return "".join(parts)
 
 
+def _terminal(flow, name: str, cx: int, cy: int, label: str, sub: str) -> str:
+    """Kartu input/output pada kanvas utama, agar alur berawal dan berakhir di diagram."""
+    state = norm(flow.state(name))
+    x, y, w, h = cx - 77, cy - 36, 154, 72
+    return (f'<g class="aog-c aog-terminal aog-c-{state}">'
+            f'<rect class="f-card" x="{x}" y="{y}" width="{w}" height="{h}" rx="13"></rect>'
+            f'<rect class="f-inset" x="{x + 5}" y="{y + 5}" width="{w - 10}" height="{h - 10}" rx="10"></rect>'
+            f'<circle class="f-dot" cx="{x + 17}" cy="{cy}" r="4"></circle>'
+            f'<text class="c-lb" x="{cx}" y="{cy - 5}" text-anchor="middle">{_esc(label)}</text>'
+            f'<text class="c-sb" x="{cx}" y="{cy + 15}" text-anchor="middle">{_esc(sub)}</text>'
+            '</g>')
+
+
 # ---------------- panel alur ----------------
 def _gbox(cx, cy, w, h, label, sub, state, pill=False) -> str:
     rx = h / 2 if pill else 10
@@ -270,6 +283,12 @@ def render(flow) -> str:
              '<text class="aog-mt" x="22" y="32">Mesin Council</text>',
              f'<text class="aog-ms" x="22" y="52">{_esc(_clip(status, 34))}</text>']
     parts.append(_mesh(live))
+    # Koneksi masuk/keluar; sudut membulat menyerupai kabel pada workflow referensi.
+    for src, dst, a, b in (("start", "orchestrator", (120, 505), CUBES["orchestrator"]),
+                           ("verifier", "answer", CUBES["verifier"], (600, 505))):
+        state = edge_cls(node_state(flow, src), node_state(flow, dst))
+        path, _, _ = _qpath(a, b, 0)
+        parts.append(f'<path class="aog-e aog-e-{state}" d="{path}"></path>')
     for src, dst, label, bias in CUBE_EDGES:
         a, b = CUBES[src], CUBES[dst]
         state = edge_cls(node_state(flow, src), node_state(flow, dst))
@@ -280,8 +299,11 @@ def render(flow) -> str:
         if label:
             parts.append(f'<text class="aog-el aog-el-{state}" x="{lx:.0f}" y="{ly - 6:.0f}">'
                          f'{_esc(label)}</text>')
+    # Node input/output menempati posisi kartu tersendiri seperti pada gambar acuan.
+    parts.append(_terminal(flow, "start", 120, 505, "User Input", "Pertanyaan pengguna"))
     for name in CUBES:
         parts.append(_cube(flow, name))
+    parts.append(_terminal(flow, "answer", 600, 505, "Jawaban final", "Council response"))
     parts.append(_graph(flow))
     parts.append("</svg>")
     return "".join(parts)
