@@ -135,9 +135,12 @@ def github_pr_panel():
             return
 
         with st.form("gh_load_repo"):
-            repo = st.text_input("Repositori (owner/nama)",
-                                 value=config.get_secret("GITHUB_REPOSITORY"), key="gh_repo")
-            base = st.text_input("Branch dasar", value="main", key="gh_base")
+            repo_col, branch_col = st.columns([1.3, 1])
+            with repo_col:
+                repo = st.text_input("Repositori", value=config.get_secret("GITHUB_REPOSITORY"),
+                                     key="gh_repo", placeholder="owner/nama-repo")
+            with branch_col:
+                base = st.text_input("Branch dasar", value="main", key="gh_base")
             load_repo = st.form_submit_button("Muat repositori", icon=":material/folder_open:",
                                               use_container_width=True)
         if load_repo:
@@ -281,7 +284,6 @@ with left:
         if st.button("Chat baru", icon=":material/add_comment:", use_container_width=True):
             reset_chat()
             st.rerun()
-    github_pr_panel()
     if demo:
         st.caption(":material/science: Mode demo: tanpa API key, jawaban berupa contoh.")
 
@@ -419,3 +421,7 @@ if question:
                     ss.messages.pop()
                     ss.n_requests -= 1
         draw()
+
+# Panel PR berada di bawah seluruh kolom chat, terpisah dari kontrol chat utama.
+with left:
+    github_pr_panel()
