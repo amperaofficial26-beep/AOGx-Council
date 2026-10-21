@@ -122,6 +122,8 @@ with st.sidebar:
     c1, c2 = st.columns(2)
     if c1.button("Chat baru"):
         ss.messages = []
+        ss.n_requests = 0
+        ss.diag = None
         st.rerun()
     if c2.button("Muat ulang key"):
         get_router.clear()

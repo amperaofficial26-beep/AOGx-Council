@@ -18,7 +18,8 @@ class Router:
     def __init__(self):
         self.providers: Dict[str, object] = {}
         for name, cfg in config.OPENAI_COMPAT.items():
-            base_url = cfg["base_url"] or config.get_secret(f"{name.upper()}_BASE_URL")
+            # Env <PROVIDER>_BASE_URL menang supaya gateway/proxy bisa dipakai tanpa ubah kode.
+            base_url = config.get_secret(f"{name.upper()}_BASE_URL") or cfg["base_url"]
             self.providers[name] = OpenAICompatProvider(
                 name, base_url, config.get_secret(cfg["key"]))
         self.providers["gemini"] = GeminiProvider(config.get_secret(config.GEMINI["key"]))
