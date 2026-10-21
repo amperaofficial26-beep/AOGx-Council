@@ -83,7 +83,10 @@ CSS = """
 .aog-live b { animation:aogblink 1.2s ease-in-out infinite; font-size:14px; }
 
 /* Composer gelap berbentuk kapsul dengan halo RGB bergerak di belakangnya. */
-@keyframes aogComposerHue { to { transform:rotate(360deg); filter:hue-rotate(360deg); } }
+@keyframes aogComposerGlow {
+  0%,100% { filter:blur(24px) hue-rotate(0deg); opacity:.22; }
+  50% { filter:blur(30px) hue-rotate(150deg); opacity:.42; }
+}
 [data-testid="stChatInput"] {
   position:relative; isolation:isolate; overflow:visible !important;
   background:transparent !important; border:0 !important; border-radius:999px !important;
@@ -91,8 +94,8 @@ CSS = """
 }
 [data-testid="stChatInput"]::before {
   content:""; position:absolute; z-index:-1; inset:-5px; border-radius:999px;
-  background:conic-gradient(from 0deg,#24d8ff,#8c55ff,#ff4fc8,#ff9e46,#45f3ad,#24d8ff);
-  filter:blur(17px); opacity:.72; animation:aogComposerHue 7s linear infinite;
+  background:linear-gradient(90deg,#24d8ff,#8c55ff,#ff69bc,#45f3ad);
+  filter:blur(24px); opacity:.28; animation:aogComposerGlow 9s ease-in-out infinite;
   pointer-events:none;
 }
 [data-testid="stChatInput"] > div {
@@ -113,7 +116,7 @@ CSS = """
   background:#111c2d; border:1px solid #263750; border-radius:14px;
 }
 @media (prefers-reduced-motion: reduce) {
-  [data-testid="stChatInput"]::before { animation:none; }
+  [data-testid="stChatInput"]::before { animation:none; opacity:.24; }
 }
 .aog-warn { background:#1c1608; border:1px solid #4a3a12; border-radius:12px;
   padding:9px 12px; color:#fcd34d; font-size:12.5px; }
