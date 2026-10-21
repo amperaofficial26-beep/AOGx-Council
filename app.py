@@ -127,7 +127,7 @@ def reset_chat():
 
 def github_pr_panel():
     """AI menyiapkan diff untuk ditinjau; hanya membuat branch/PR setelah persetujuan."""
-    with st.container(border=True):
+    with st.container():
         st.markdown("**GitHub · Branch & Pull Request**")
         token = config.get_secret("GITHUB_TOKEN")
         if not token:
@@ -136,14 +136,16 @@ def github_pr_panel():
             return
 
         with st.form("gh_load_repo"):
-            repo_col, branch_col = st.columns([1.3, 1])
+            repo_col, branch_col, load_col = st.columns([1.35, 1, 0.48])
             with repo_col:
                 repo = st.text_input("Repositori", value=config.get_secret("GITHUB_REPOSITORY"),
                                      key="gh_repo", placeholder="owner/nama-repo")
             with branch_col:
                 base = st.text_input("Branch dasar", value="main", key="gh_base")
-            load_repo = st.form_submit_button("Muat repositori", icon=":material/folder_open:",
-                                              use_container_width=True)
+            with load_col:
+                st.markdown("<div style='height:27px'></div>", unsafe_allow_html=True)
+                load_repo = st.form_submit_button("Muat", icon=":material/folder_open:",
+                                                  use_container_width=True)
         if load_repo:
             try:
                 files = GitHubClient(token).list_files(repo, base)
