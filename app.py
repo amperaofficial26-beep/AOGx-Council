@@ -127,7 +127,8 @@ def reset_chat():
 
 def github_pr_panel():
     """AI menyiapkan diff untuk ditinjau; hanya membuat branch/PR setelah persetujuan."""
-    with st.expander("GitHub · Buat branch & Pull Request", expanded=False):
+    with st.container(border=True):
+        st.markdown("**GitHub · Branch & Pull Request**")
         token = config.get_secret("GITHUB_TOKEN")
         if not token:
             st.info("Atur `GITHUB_TOKEN` di `.env` atau Streamlit secrets. Token perlu akses "
