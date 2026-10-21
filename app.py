@@ -127,8 +127,8 @@ if ss.mode not in config.MODES:
 demo = ss.demo
 active = [] if demo else router.active_providers()
 
-# ---------- Tata letak: 1/4 chat | 3/4 mesin ----------
-left, right = st.columns([1, 3], gap="medium")
+# ---------- Tata letak: 2/4 chat | 2/4 mesin ----------
+left, right = st.columns([2, 2], gap="medium")
 
 with left:
     st.markdown('<div class="aog-title">AOGx Council</div>', unsafe_allow_html=True)
