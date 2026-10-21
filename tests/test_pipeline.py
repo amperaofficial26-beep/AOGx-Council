@@ -4,7 +4,6 @@ from unittest.mock import patch
 import config
 from core import pipeline
 from core.router import AllProvidersFailed
-from core.utils import extract_json
 
 
 class FakeTavily:
