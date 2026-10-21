@@ -1,6 +1,7 @@
 """GitHub REST helpers for reviewing AI edits and publishing them as a pull request."""
 import base64
 import re
+from typing import Optional
 from urllib.parse import quote
 
 import requests
@@ -79,7 +80,7 @@ class GitHubClient:
             raise GitHubError(f"File {path} tidak dapat dibaca sebagai teks UTF-8.") from None
 
     def create_pull_request(self, repo: str, base: str, branch: str, title: str,
-                            body: str, changes: dict, modes: dict | None = None):
+                            body: str, changes: dict, modes: Optional[dict] = None):
         """Commit perubahan sebagai satu commit, buat branch baru, lalu buka PR."""
         repo = self.validate_repo(repo)
         if not changes:
