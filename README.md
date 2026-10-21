@@ -17,6 +17,11 @@ streamlit run app.py
 Taruh semua key di Settings > Secrets (format TOML). Tambahkan `APP_ACCESS_CODE = "kode-rahasia"`
 agar app hanya bisa dibuka orang yang tahu kodenya. Jangan commit `.env` atau `secrets.toml`.
 
+## Tes
+```
+python -m unittest discover -s tests -t .   # tanpa butuh API key
+```
+
 ## Mengatur agen
 - `config.py`: model default, rute fallback per peran (`ROUTES`), model khusus per peran (`ROLE_MODELS`),
   mode kedalaman (`MODES`), ambang kualitas, batas pemakaian.
