@@ -41,3 +41,18 @@ class GeminiProvider(Provider):
             return "".join(p.get("text", "") for p in parts)
         except (KeyError, IndexError, ValueError):
             raise ProviderError("gemini: respons kosong atau diblokir")
+
+    def list_models(self) -> List[str]:
+        try:
+            r = requests.get("https://generativelanguage.googleapis.com/v1beta/models",
+                             headers={"x-goog-api-key": self.api_key},
+                             params={"pageSize": 200}, timeout=self.timeout)
+        except requests.RequestException as e:
+            raise ProviderError(f"gemini: koneksi gagal ({e.__class__.__name__})")
+        if r.status_code != 200:
+            raise ProviderError(f"gemini: HTTP {r.status_code} {r.text[:200]}", r.status_code)
+        out = []
+        for m in r.json().get("models", []):
+            if "generateContent" in m.get("supportedGenerationMethods", []):
+                out.append(m.get("name", "").replace("models/", ""))
+        return sorted(x for x in out if x)
