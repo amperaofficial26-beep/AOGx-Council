@@ -1,6 +1,6 @@
 """AOGx-Council: diskusi multi-agen AI dengan orchestrator dan penyaringan jawaban berlapis.
 
-Tata letak: kolom kiri untuk chat, kanvas kanan menampilkan proses agen secara langsung.
+Tata letak: 1/4 kiri khusus chat (permanen, tanpa sidebar), 3/4 kanan "mesin" proses agen.
 """
 import hmac
 
@@ -10,25 +10,26 @@ import config
 from core import pipeline
 from core.router import Router
 from core.utils import clip
-from providers.base import ProviderError
-from ui import theme
+from ui import machine, theme
 from ui.flow import CouncilFlow
 
-st.set_page_config(page_title="AOGx Council", page_icon="🦊", layout="wide")
+st.set_page_config(page_title="AOGx Council", page_icon=":material/hub:", layout="wide",
+                   initial_sidebar_state="collapsed")
 
 st.markdown(theme.CSS, unsafe_allow_html=True)
+st.markdown(machine.CSS, unsafe_allow_html=True)
 st.markdown("""
 <style>
-.block-container { padding-top: 1.1rem; padding-bottom: 1.2rem; max-width: 1500px; }
+.block-container { padding-top: 1rem; padding-bottom: 1rem; max-width: 1840px; }
 #MainMenu, footer, header[data-testid="stHeader"] { visibility: hidden; }
+[data-testid="stSidebar"], [data-testid="stSidebarCollapsedControl"],
+[data-testid="collapsedControl"] { display: none !important; }
 html, body, [class*="css"] { font-family: "Inter", ui-sans-serif, system-ui, -apple-system, sans-serif; }
-.aog-title { font-size: 1.9rem; font-weight: 800; letter-spacing: .5px; line-height: 1.15;
+.aog-title { font-size: 1.5rem; font-weight: 800; letter-spacing: .5px; line-height: 1.15;
   background: linear-gradient(90deg, #e5e7eb, #94a3b8 60%, #cbd5e1);
   -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-.aog-sub { color: #94a3b8; margin-top: -0.35rem; }
 [data-testid="stChatMessage"] { background: #0d1523; border: 1px solid #1a2740;
-  border-radius: 14px; padding: .7rem .85rem; margin-bottom: .5rem; }
-[data-testid="stSidebar"] { background: #0a111d; border-right: 1px solid #17233a; }
+  border-radius: 14px; padding: .6rem .7rem; margin-bottom: .5rem; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -91,103 +92,84 @@ def render_answer(msg: dict, idx: int):
                 st.markdown(f"**{ev['role']}** · `{ev['provider']}` · {ev['stage']}")
                 st.text(ev["text"])
     if meta.get("flow"):
-        if st.button("🧠 Tampilkan proses ini di kanvas", key=f"flow_{idx}"):
+        if st.button("Tampilkan di mesin", key=f"flow_{idx}", icon=":material/account_tree:",
+                     help="Putar ulang proses jawaban ini di panel mesin."):
             ss.flow = CouncilFlow.restore(meta["flow"], msg.get("question", ""))
             st.rerun()
-    st.download_button("Unduh jawaban (.md)", msg["content"],
-                       file_name="jawaban-aogx.md", key=f"dl_{idx}")
+    st.download_button("Unduh jawaban (.md)", msg["content"], file_name="jawaban-aogx.md",
+                       key=f"dl_{idx}", icon=":material/download:")
 
 
-# ---------- Sidebar ----------
-with st.sidebar:
-    st.markdown("### Pengaturan")
-    mode = st.radio("Kedalaman", list(config.MODES), index=1,
-                    help="Cepat: 1 putaran tanpa verifikasi. Seimbang: 2 putaran + verifikasi. "
-                         "Mendalam: 3 putaran + verifikasi ketat (lebih banyak pemakaian kuota).")
-    demo = st.toggle("Mode demo (tanpa API key)", value=ss.demo,
-                     help="Semua agen dijawab dengan teks siap pakai supaya kanvas proses tetap bisa "
-                          "dilihat. Matikan untuk memakai provider asli.")
-    ss.demo = demo
-    active = [] if demo else router.active_providers()
-    st.markdown("### Status provider")
+MODE_HELP = {
+    "Cepat": "1 putaran, tanpa verifikasi",
+    "Seimbang": "2 putaran + verifikasi",
+    "Mendalam": "3 putaran + verifikasi ketat (kuota lebih banyak)",
+}
+
+
+def mode_label(name: str) -> str:
+    return f"{name} — {MODE_HELP.get(name, '')}".rstrip(" —")
+
+
+def pick_mode():
+    ss.mode = ss.mode_pick
+
+
+def reset_chat():
+    ss.messages = []
+    ss.n_requests = 0
+    ss.pop("flow", None)
+
+
+ss.setdefault("mode", "Seimbang")
+if ss.mode not in config.MODES:
+    ss.mode = "Seimbang"
+demo = ss.demo
+active = [] if demo else router.active_providers()
+
+# ---------- Tata letak: 1/4 chat | 3/4 mesin ----------
+left, right = st.columns([1, 3], gap="medium")
+
+with left:
+    st.markdown('<div class="aog-title">AOGx Council</div>', unsafe_allow_html=True)
+    b1, b2 = st.columns(2)
+    with b1:
+        with st.popover(ss.mode, icon=":material/tune:", use_container_width=True,
+                        help="Kedalaman diskusi"):
+            st.markdown("**Kedalaman diskusi**")
+            st.radio("Kedalaman", list(config.MODES), key="mode_pick",
+                     index=list(config.MODES).index(ss.mode), format_func=mode_label,
+                     on_change=pick_mode, label_visibility="collapsed")
+            st.caption("Makin dalam, makin banyak putaran dan pemakaian kuota provider.")
+    with b2:
+        if st.button("Chat baru", icon=":material/add_comment:", use_container_width=True):
+            reset_chat()
+            st.rerun()
     if demo:
-        st.markdown("🟢 demo (tidak memanggil API)")
-    else:
-        for name in list(config.OPENAI_COMPAT) + ["gemini"]:
-            st.markdown(("🟢 " if name in active else "⚪ ") + name)
-        st.markdown(("🟢 " if router.tavily.available() else "⚪ ") + "tavily (web search)")
-    if router.stats and not demo:
-        with st.expander("Statistik panggilan"):
-            for n, s in router.stats.items():
-                st.write(f"{n}: {s['ok']} berhasil, {s['fail']} gagal")
-    if not demo and st.button("Tes koneksi provider"):
-        with st.spinner("Menguji tiap provider…"):
-            ss.diag = router.diagnose()
-    if ss.get("diag") and not demo:
-        for name, ok, msg in ss.diag:
-            st.markdown(f"{'✅' if ok else ('⚪' if ok is None else '❌')} **{name}**")
-            st.caption(msg)
-    if not demo:
-        with st.expander("Cari ID model"):
-            keyed = [n for n, p in router.providers.items() if p.available()]
-            if keyed:
-                prov = st.selectbox("Provider", keyed)
-                flt = st.text_input("Filter (mis. free, llama, gpt, flash)")
-                if st.button("Ambil daftar model"):
-                    try:
-                        ss.models = (prov, router.list_models(prov))
-                    except ProviderError as e:
-                        ss.models = (prov, [f"ERROR: {e}"])
-                if ss.get("models"):
-                    mp, ids = ss.models
-                    shown = [i for i in ids if flt.lower() in i.lower()][:60]
-                    st.caption(f"{mp}: {len(ids)} model, tampil {len(shown)}")
-                    st.code("\n".join(shown) or "(tidak ada yang cocok)")
-            else:
-                st.caption("Isi minimal satu API key dulu.")
-    c1, c2 = st.columns(2)
-    if c1.button("Chat baru"):
-        ss.messages = []
-        ss.n_requests = 0
-        ss.diag = None
-        ss.pop("flow", None)
-        st.rerun()
-    if c2.button("Muat ulang key"):
-        get_router.clear()
-        st.rerun()
-    st.caption(f"Permintaan sesi ini: {ss.n_requests}/{config.MAX_REQUESTS_PER_SESSION}"
-               + (" · mode demo" if demo else ""))
+        st.caption(":material/science: Mode demo: tanpa API key, jawaban berupa contoh.")
 
-# ---------- Kepala halaman ----------
-st.markdown('<div class="aog-title">AOGx Council</div>', unsafe_allow_html=True)
-st.markdown('<div class="aog-sub">Beberapa AI berdiskusi, saling mengoreksi, lalu jawabannya '
-            'disaring berlapis — prosesnya tampil langsung di kanvas sebelah kanan.</div>',
-            unsafe_allow_html=True)
+mode = ss.mode
+cfg = config.MODES[mode]
 
-left, right = st.columns([0.40, 0.60], gap="medium")
-
-# ---------- Kanan: kanvas proses ----------
+# ---------- Kanan: mesin proses ----------
 flow = ss.get("flow")
 if flow is None:
-    cfg = config.MODES[mode]
     flow = CouncilFlow(mode_name=mode, rounds=cfg["rounds"], verify=cfg["verify"],
                        max_retries=cfg["max_retries"])
     flow.preview()
 ss.flow = flow
 
 with right:
-    st.markdown('<div class="aog-colhead">⚙️ Proses council — langsung</div>',
-                unsafe_allow_html=True)
+    st.markdown(":material/hub: **Mesin proses**")
     ph_chips = st.empty()
     ph_graph = st.empty()
-    st.markdown('<div class="aog-colhead" style="margin-top:10px">🧾 Jejak langkah</div>',
-                unsafe_allow_html=True)
+    st.markdown(":material/receipt_long: **Jejak langkah**")
     ph_log = st.empty()
 
 
 def draw(redraw_log: bool = True):
     ph_chips.markdown(theme.panel(flow.render_chips() + theme.LEGEND), unsafe_allow_html=True)
-    ph_graph.markdown(theme.stage(flow.render()), unsafe_allow_html=True)
+    ph_graph.markdown(theme.stage(machine.render(flow)), unsafe_allow_html=True)
     if redraw_log:
         ph_log.markdown(theme.panel(flow.render_log()), unsafe_allow_html=True)
 
@@ -196,14 +178,13 @@ draw()
 
 # ---------- Kiri: chat ----------
 with left:
-    st.markdown('<div class="aog-colhead">💬 Chat</div>', unsafe_allow_html=True)
     chat_box = st.container(height=560, border=False)
     question = st.chat_input("Tanyakan sesuatu ke AOGx Council…")
 
 with chat_box:
-    if not ss.messages:
+    if not ss.messages and not question:
         st.markdown('<div class="aog-warn">Belum ada pertanyaan. Kirim satu pertanyaan, lalu '
-                    'perhatikan kanvas di kanan: node menyala biru saat agen bekerja, hijau saat '
+                    'lihat mesin di kanan: kubus menyala biru saat agen bekerja, hijau saat '
                     'selesai, dan abu-abu saat tahapannya dilewati.</div>',
                     unsafe_allow_html=True)
     for i, m in enumerate(ss.messages):
@@ -223,12 +204,11 @@ if question:
         st.error("Batas permintaan sesi ini tercapai. Klik \"Chat baru\" atau muat ulang halaman.")
     elif not usable:
         st.error("Belum ada provider aktif. Isi API key di `.env` atau Streamlit secrets "
-                 "(lihat `env.example`), atau nyalakan mode demo di sidebar.")
+                 "(lihat `env.example`).")
     else:
         history = history_text(ss.messages)
         ss.messages.append({"role": "user", "content": question})
         ss.n_requests += 1
-        cfg = config.MODES[mode]
         flow = CouncilFlow(question=question, mode_name=mode, rounds=cfg["rounds"],
                            verify=cfg["verify"], max_retries=cfg["max_retries"])
         ss.flow = flow
