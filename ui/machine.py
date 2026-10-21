@@ -143,37 +143,27 @@ def _mesh(live: bool) -> str:
 
 
 def _cube(flow, name: str) -> str:
+    """Kartu agen bergaya node neon, terinspirasi diagram jaringan pada referensi."""
     cx, cy = CUBES[name]
     state = node_state(flow, name)
     g = NODES[name]
-    top = f"{cx},{cy - S} {cx + DX:.1f},{cy - DY} {cx},{cy} {cx - DX:.1f},{cy - DY}"
-    left = f"{cx - DX:.1f},{cy - DY} {cx},{cy} {cx},{cy + S} {cx - DX:.1f},{cy + DY}"
-    right = f"{cx},{cy} {cx + DX:.1f},{cy - DY} {cx + DX:.1f},{cy + DY} {cx},{cy + S}"
-    parts = [f'<g class="aog-c aog-c-{state}">',
-             f'<polygon class="f-left" points="{left}"></polygon>',
-             f'<polygon class="f-right" points="{right}"></polygon>',
-             f'<polygon class="f-top" points="{top}"></polygon>',
-             f'<ellipse class="f-ring" cx="{cx}" cy="{cy - DY:.1f}" rx="{DX * .45:.1f}" '
-             f'ry="{DY * .45:.1f}"></ellipse>']
-    maxw = DX - 9
+    width, height = 154, 72
+    x, y = cx - width / 2, cy - height / 2
     label = g["label"]
-    parts.append(f'<g transform="matrix(1,{SKEW:.4f},0,1,{cx - DX:.1f},{cy - DY:.1f})">'
-                 f'<text class="c-lb" x="5" y="22"{_fit(label, 10, maxw, True)}>{_esc(label)}</text>')
     sub = flow.notes.get(name) or g["sub"]
-    for i, line in enumerate(_split(sub)):
-        parts.append(f'<text class="c-sb" x="5" y="{36 + 10 * i}"{_fit(line, 7, maxw)}>'
-                     f'{_esc(line)}</text>')
-    parts.append("</g>")
+    word = STATE_WORD[state]
     prov = flow.providers.get(name, "")
     dur = flow.durations.get(name, "")
-    word = STATE_WORD[state]
-    parts.append(f'<g transform="matrix(1,{-SKEW:.4f},0,1,{cx},{cy})">'
-                 f'<text class="c-st" x="5" y="24"{_fit(word, 10, maxw, True)}>{_esc(word)}</text>')
-    if prov:
-        parts.append(f'<text class="c-sb" x="5" y="37"{_fit(prov, 8, maxw)}>{_esc(prov)}</text>')
-    if dur:
-        parts.append(f'<text class="c-sb" x="5" y="49"{_fit(dur, 8, maxw)}>{_esc(dur)}</text>')
-    parts.append("</g></g>")
+    parts = [f'<g class="aog-c aog-agent-{name} aog-c-{state}">',
+             f'<rect class="f-card" x="{x:.0f}" y="{y:.0f}" width="{width}" height="{height}" rx="13"></rect>',
+             f'<rect class="f-inset" x="{x + 5:.0f}" y="{y + 5:.0f}" width="{width - 10}" '
+             f'height="{height - 10}" rx="10"></rect>',
+             f'<circle class="f-dot" cx="{x + 17:.0f}" cy="{cy:.0f}" r="4"></circle>',
+             f'<text class="c-lb" x="{cx:.0f}" y="{cy - 9:.0f}" text-anchor="middle">{_esc(label)}</text>',
+             f'<text class="c-sb" x="{cx:.0f}" y="{cy + 8:.0f}" text-anchor="middle">{_esc(_clip(sub, 24))}</text>',
+             f'<text class="c-st" x="{cx:.0f}" y="{cy + 25:.0f}" text-anchor="middle">{_esc(word)}'
+             f'{(" · " + _esc(prov)) if prov else ""}{(" · " + _esc(dur)) if dur else ""}</text>',
+             '</g>']
     return "".join(parts)
 
 
@@ -257,8 +247,9 @@ def _defs() -> str:
             '<pattern id="mGrid" width="40" height="40" patternUnits="userSpaceOnUse">'
             '<path d="M40,0 L0,0 L0,40" fill="none" stroke="#10213a" stroke-width="1"></path>'
             '</pattern>'
-            '<radialGradient id="mGlowBg" cx="35%" cy="48%" r="60%">'
-            '<stop offset="0" stop-color="#0d2b4a" stop-opacity=".75"></stop>'
+            '<radialGradient id="mGlowBg" cx="35%" cy="48%" r="70%">'
+            '<stop offset="0" stop-color="#21164a" stop-opacity=".78"></stop>'
+            '<stop offset=".58" stop-color="#101d3c" stop-opacity=".48"></stop>'
             '<stop offset="1" stop-color="#050b14" stop-opacity="0"></stop></radialGradient>'
             f'{markers}</defs>')
 
@@ -299,57 +290,62 @@ def render(flow) -> str:
 CSS = """
 <style>
 .aog-svgm { width:100%; height:auto; display:block; max-height:calc(100vh - 260px); }
-.aog-mt { fill:#e2e8f0; font-size:15px; font-weight:700; letter-spacing:.6px; }
-.aog-ms { fill:#7dd3fc; font-size:11px; }
-.aog-mesh line { stroke:#1b5f93; stroke-opacity:.5; stroke-width:1.1; }
-.aog-mesh circle { fill:#38bdf8; fill-opacity:.85; }
-.aog-mesh .aog-hubc { fill:#0b2238; stroke:#38bdf8; stroke-width:1.6; }
-.aog-mesh .aog-hubt { fill:#9be3ff; font-size:7.5px; font-weight:700; text-anchor:middle; }
-.aog-mesh-live line { stroke-opacity:.9; stroke-dasharray:4 6; animation:aogdash 1.2s linear infinite; }
-.aog-mesh-live circle { animation:aogblink 1.4s ease-in-out infinite; }
+.aog-mt { fill:#f1eaff; font-size:15px; font-weight:700; letter-spacing:.6px; }
+.aog-ms { fill:#83dfff; font-size:11px; }
+.aog-mesh line { stroke:#5846a2; stroke-opacity:.42; stroke-width:1.1; }
+.aog-mesh circle { fill:#a879ff; fill-opacity:.9; filter:url(#aogGlow); }
+.aog-mesh .aog-hubc { fill:#160d37; stroke:#d36dff; stroke-width:1.8; }
+.aog-mesh .aog-hubt { fill:#f3c5ff; font-size:7.5px; font-weight:700; text-anchor:middle; }
+.aog-mesh-live line { stroke:#42d9ff; stroke-opacity:1; stroke-dasharray:4 6; animation:aogdash 1.2s linear infinite; }
+.aog-mesh-live circle { fill:#42d9ff; animation:aogblink 1.4s ease-in-out infinite; }
 
-.aog-c polygon { stroke-width:1.1; stroke-linejoin:round; transition:fill .35s ease; }
-.aog-c .f-ring { fill:none; stroke-width:1.6; }
 .aog-c text { font-family:Inter,ui-sans-serif,system-ui,sans-serif; pointer-events:none; }
-.aog-c .c-lb { font-size:10px; font-weight:700; fill:#e8f3ff; }
-.aog-c .c-st { font-size:10px; font-weight:700; fill:#e8f3ff; }
-.aog-c .c-sb { font-size:7px; fill:#b7d3f0; }
-.aog-c-pending .f-top { fill:#16294a; stroke:#2b4c7c; }
-.aog-c-pending .f-left { fill:#0d1b34; stroke:#2b4c7c; }
-.aog-c-pending .f-right { fill:#0a152a; stroke:#2b4c7c; }
-.aog-c-pending .f-ring { stroke:#2f5c96; }
-.aog-c-pending text { fill:#8fa8cc; }
+.aog-c .f-card { fill:#101532; stroke:#7661ff; stroke-width:1.8; transition:all .35s ease; }
+.aog-c .f-inset { fill:#171c48; fill-opacity:.9; stroke:#5a49d4; stroke-width:1; }
+.aog-c .f-dot { fill:#46dcff; filter:url(#aogGlow); }
+.aog-c .c-lb { font-size:12px; font-weight:750; fill:#f3f2ff; }
+.aog-c .c-st { font-size:8px; font-weight:700; fill:#a9b8e5; }
+.aog-c .c-sb { font-size:9px; fill:#9da9d8; }
+.aog-agent-orchestrator .f-card, .aog-agent-verifier .f-card { stroke:#36cfff; }
+.aog-agent-orchestrator .f-inset, .aog-agent-verifier .f-inset { stroke:#198dcf; fill:#102955; }
+.aog-agent-researcher .f-card, .aog-agent-skeptic .f-card { stroke:#d45bff; }
+.aog-agent-researcher .f-inset, .aog-agent-skeptic .f-inset { stroke:#a53cf2; fill:#271548; }
+.aog-agent-analyst .f-card, .aog-agent-expert .f-card { stroke:#ffad38; }
+.aog-agent-analyst .f-inset, .aog-agent-expert .f-inset { stroke:#ed772b; fill:#3b1d26; }
+.aog-agent-synthesizer .f-card { stroke:#ff5ca8; }
+.aog-agent-synthesizer .f-inset { stroke:#ce378c; fill:#321638; }
+.aog-c-pending .f-card { fill:#0c1128; stroke-opacity:.82; }
+.aog-c-pending .f-inset { fill:#111631; }
 .aog-c-running { filter:url(#aogGlow); }
-.aog-c-running .f-top { fill:#4cc9ff; stroke:#a5e9ff; }
-.aog-c-running .f-left { fill:#1a78c9; stroke:#a5e9ff; }
-.aog-c-running .f-right { fill:#1160b0; stroke:#a5e9ff; }
-.aog-c-running .f-ring { stroke:#ffffff; animation:aogpulse 1.3s ease-in-out infinite; }
-.aog-c-done .f-top { fill:#3ddc97; stroke:#98f0c8; }
-.aog-c-done .f-left { fill:#138a62; stroke:#98f0c8; }
-.aog-c-done .f-right { fill:#0e6e4f; stroke:#98f0c8; }
-.aog-c-done .f-ring { stroke:#eafff5; }
-.aog-c-failed .f-top { fill:#fb7185; stroke:#fecdd3; }
-.aog-c-failed .f-left { fill:#b83a4b; stroke:#fecdd3; }
-.aog-c-failed .f-right { fill:#952f3e; stroke:#fecdd3; }
-.aog-c-failed .f-ring { stroke:#fff1f2; }
-.aog-c-skipped .f-top { fill:#243146; stroke:#33445f; }
-.aog-c-skipped .f-left { fill:#18222f; stroke:#33445f; }
-.aog-c-skipped .f-right { fill:#141c28; stroke:#33445f; }
-.aog-c-skipped .f-ring { stroke:#3b4d69; stroke-dasharray:3 3; }
-.aog-c-skipped text { fill:#5d6f8a; }
+.aog-c-running .f-card { fill:#102c52; stroke:#78f2ff; stroke-width:2.7; animation:aogpulse 1.3s ease-in-out infinite; }
+.aog-c-running .f-inset { fill:#124878; stroke:#a4f7ff; }
+.aog-c-running .f-dot { fill:#fff; }
+.aog-c-running text { fill:#fff; }
+.aog-c-done .f-card { fill:#0d382f; stroke:#45f2b0; }
+.aog-c-done .f-inset { fill:#105544; stroke:#74ffd0; }
+.aog-c-done text { fill:#ddfff2; }
+.aog-c-done .f-dot { fill:#5dffb5; }
+.aog-c-failed .f-card { fill:#451b31; stroke:#ff718f; }
+.aog-c-failed .f-inset { fill:#652039; stroke:#ff9bb3; }
+.aog-c-failed text { fill:#fff0f3; }
+.aog-c-failed .f-dot { fill:#ff718f; }
+.aog-c-skipped .f-card { fill:#111726; stroke:#3b465d; stroke-dasharray:5 5; }
+.aog-c-skipped .f-inset { fill:#121827; stroke:#303a50; }
+.aog-c-skipped text { fill:#65718a; }
+.aog-c-skipped .f-dot { fill:#3b465d; }
 
-.aog-lgbg { fill:#07101d; fill-opacity:.82; stroke:#17283f; }
-.aog-lgt { fill:#f1f5f9; font-size:17px; font-weight:800; text-anchor:middle; }
-.aog-g .gb { fill:#0e1a2e; stroke:#2d4a73; stroke-width:1.4; transition:all .35s ease; }
-.aog-g .gl { fill:#a9bfdf; font-size:11px; font-weight:600; text-anchor:middle; }
-.aog-g .gs { fill:#5f7798; font-size:8.5px; text-anchor:middle; }
-.aog-g-running .gb { fill:#0b2a44; stroke:#38bdf8; stroke-width:1.8; filter:url(#aogGlow); }
-.aog-g-running .gl { fill:#e0f2fe; }
-.aog-g-done .gb { fill:#0a2a24; stroke:#2dd4a0; }
+.aog-lgbg { fill:#100b25; fill-opacity:.92; stroke:#483174; }
+.aog-lgt { fill:#f1eaff; font-size:17px; font-weight:800; text-anchor:middle; }
+.aog-g .gb { fill:#17132d; stroke:#59428b; stroke-width:1.4; transition:all .35s ease; }
+.aog-g .gl { fill:#d4c5f8; font-size:11px; font-weight:600; text-anchor:middle; }
+.aog-g .gs { fill:#9b87c8; font-size:8.5px; text-anchor:middle; }
+.aog-g-running .gb { fill:#102c52; stroke:#43dcff; stroke-width:1.8; filter:url(#aogGlow); }
+.aog-g-running .gl { fill:#e0faff; }
+.aog-g-done .gb { fill:#10372f; stroke:#42e6aa; }
 .aog-g-done .gl { fill:#d1fae5; }
-.aog-g-failed .gb { fill:#2a1219; stroke:#f87171; }
+.aog-g-failed .gb { fill:#40192a; stroke:#ff718f; }
 .aog-g-failed .gl { fill:#fecaca; }
-.aog-g-skipped .gb { fill:#0a111d; stroke:#2b3a52; stroke-dasharray:3 5; }
-.aog-g-skipped .gl { fill:#4d5f79; }
+.aog-g-skipped .gb { fill:#111321; stroke:#413953; stroke-dasharray:3 5; }
+.aog-g-skipped .gl { fill:#766b8a; }
 </style>
 """
