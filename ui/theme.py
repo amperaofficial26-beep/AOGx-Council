@@ -82,22 +82,38 @@ CSS = """
   background:#0b1624; border:1px solid #1c2b42; border-radius:12px; padding:8px 11px; }
 .aog-live b { animation:aogblink 1.2s ease-in-out infinite; font-size:14px; }
 
-/* Composer membulat dengan tombol kirim biru; kartu lampiran disediakan oleh chat_input. */
+/* Composer gelap berbentuk kapsul dengan halo RGB bergerak di belakangnya. */
+@keyframes aogComposerHue { to { transform:rotate(360deg); filter:hue-rotate(360deg); } }
 [data-testid="stChatInput"] {
-  background:#fffdfa; border:1px solid #ded8ce; border-radius:28px;
-  padding:7px 9px; box-shadow:0 3px 14px rgba(0,0,0,.18);
+  position:relative; isolation:isolate; overflow:visible !important;
+  background:transparent !important; border:0 !important; border-radius:999px !important;
+  padding:8px !important; box-shadow:none !important;
+}
+[data-testid="stChatInput"]::before {
+  content:""; position:absolute; z-index:-1; inset:-5px; border-radius:999px;
+  background:conic-gradient(from 0deg,#24d8ff,#8c55ff,#ff4fc8,#ff9e46,#45f3ad,#24d8ff);
+  filter:blur(17px); opacity:.72; animation:aogComposerHue 7s linear infinite;
+  pointer-events:none;
+}
+[data-testid="stChatInput"] > div {
+  background:#0d1523 !important; border:1px solid #263750 !important;
+  border-radius:999px !important; box-shadow:0 0 18px rgba(73,139,255,.12) !important;
 }
 [data-testid="stChatInput"] textarea {
-  color:#252a33 !important; font-size:14px !important; min-height:40px !important;
+  color:#e5eaf4 !important; font-size:14px !important; min-height:44px !important;
+  background:transparent !important;
 }
-[data-testid="stChatInput"] textarea::placeholder { color:#999187 !important; opacity:1; }
+[data-testid="stChatInput"] textarea::placeholder { color:#9aa6b8 !important; opacity:1; }
 [data-testid="stChatInput"] button {
   background:#3478dc !important; color:#fff !important; border-radius:50% !important;
   min-width:44px !important; min-height:44px !important; border:0 !important;
 }
 [data-testid="stChatInput"] button:hover { background:#2467c7 !important; }
 [data-testid="stChatInput"] [data-testid="stFileUploaderFile"] {
-  background:#eef4ff; border:1px solid #d8e5fb; border-radius:14px;
+  background:#111c2d; border:1px solid #263750; border-radius:14px;
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-testid="stChatInput"]::before { animation:none; }
 }
 .aog-warn { background:#1c1608; border:1px solid #4a3a12; border-radius:12px;
   padding:9px 12px; color:#fcd34d; font-size:12.5px; }
