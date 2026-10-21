@@ -21,18 +21,18 @@ def get_secret(name: str, default: str = "") -> str:
 
 
 # Provider yang kompatibel format OpenAI (/chat/completions).
-# Cek ulang base_url dan nama model di dashboard masing-masing provider,
-# lalu ubah di sini atau lewat variabel *_MODEL / XKIRO_BASE_URL.
+# Nama model sering berubah: pakai tombol "Cari ID model" di sidebar untuk melihat
+# ID yang valid, lalu timpa lewat variabel <PROVIDER>_MODEL di Secrets.
 OPENAI_COMPAT = {
     "groq": {
         "base_url": "https://api.groq.com/openai/v1",
         "key": "GROQ_API_KEY",
-        "model": "llama-3.3-70b-versatile",
+        "model": "openai/gpt-oss-120b",
     },
     "openrouter": {
         "base_url": "https://openrouter.ai/api/v1",
         "key": "OPENROUTER_API_KEY",
-        "model": "meta-llama/llama-3.3-70b-instruct:free",
+        "model": "meta-llama/llama-3.3-70b-instruct",
     },
     "requesty": {
         "base_url": "https://router.requesty.ai/v1",
@@ -42,18 +42,19 @@ OPENAI_COMPAT = {
     "aion": {
         "base_url": "https://api.aionlabs.ai/v1",
         "key": "AION_API_KEY",
-        "model": "aion-1.0-mini",
+        "model": "aion-labs/aion-3.0-mini",
     },
     "xkiro": {
         "base_url": "https://api.xkiro.com/v1",
         "key": "XKIRO_API_KEY",
-        # Format ID wajib "vendor/model" (contoh dari docs xKiro). Daftar model aktif:
-        # GET https://api.xkiro.com/v1/models. Model yang bisa dipakai tergantung tier akunmu.
-        "model": "openai/gpt-5.6-sol",
+        # Kosong = provider nonaktif sampai kamu mengisi XKIRO_MODEL (format "vendor/model").
+        # Model "premium" butuh paket berbayar/saldo asli; pilih model non-premium dari
+        # tombol "Cari ID model" di sidebar.
+        "model": "",
     },
 }
 
-GEMINI = {"key": "GEMINI_API_KEY", "model": "gemini-2.5-flash"}
+GEMINI = {"key": "GEMINI_API_KEY", "model": "gemini-3.8-flash"}
 TAVILY = {"key": "TAVILY_API_KEY"}
 
 
@@ -73,7 +74,11 @@ def model_for(provider: str) -> str:
 # memakai "otak" berbeda. Contoh:
 #   ("skeptic", "xkiro"): "deepseek/<nama-model>",
 #   ("expert", "xkiro"): "anthropic/<nama-model>",
-ROLE_MODELS = {}
+ROLE_MODELS = {
+    # Model kecil non-reasoning untuk tugas ringan, supaya cepat dan hemat kuota.
+    ("orchestrator", "groq"): "llama-3.1-8b-instant",
+    ("researcher", "groq"): "llama-3.1-8b-instant",
+}
 
 # Rute fallback per peran: provider pertama dicoba dulu, kalau gagal lanjut ke berikutnya.
 # Peran berbeda sengaja diberi provider berbeda supaya sudut pandang model beragam.
