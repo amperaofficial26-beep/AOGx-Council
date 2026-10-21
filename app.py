@@ -6,6 +6,7 @@ import streamlit as st
 import config
 from core import pipeline
 from core.router import Router
+from providers.base import ProviderError
 from core.utils import clip
 
 st.set_page_config(page_title="AOGx Council", page_icon="🦊", layout="wide")
@@ -101,6 +102,23 @@ with st.sidebar:
         for name, ok, msg in ss.diag:
             st.markdown(f"{'✅' if ok else ('⚪' if ok is None else '❌')} **{name}**")
             st.caption(msg)
+    with st.expander("Cari ID model"):
+        keyed = [n for n, p in router.providers.items() if p.available()]
+        if keyed:
+            prov = st.selectbox("Provider", keyed)
+            flt = st.text_input("Filter (mis. free, llama, gpt, flash)")
+            if st.button("Ambil daftar model"):
+                try:
+                    ss.models = (prov, router.list_models(prov))
+                except ProviderError as e:
+                    ss.models = (prov, [f"ERROR: {e}"])
+            if ss.get("models"):
+                mp, ids = ss.models
+                shown = [i for i in ids if flt.lower() in i.lower()][:60]
+                st.caption(f"{mp}: {len(ids)} model, tampil {len(shown)}")
+                st.code("\n".join(shown) or "(tidak ada yang cocok)")
+        else:
+            st.caption("Isi minimal satu API key dulu.")
     c1, c2 = st.columns(2)
     if c1.button("Chat baru"):
         ss.messages = []
