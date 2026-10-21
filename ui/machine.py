@@ -17,13 +17,14 @@ HUB = (345.0, 300.0)
 
 # Pusat tiap kubus (7 agen Council).
 CUBES = {
-    "orchestrator": (110, 150),
-    "researcher":   (290, 80),
-    "analyst":      (560, 110),
-    "skeptic":      (610, 300),
-    "expert":       (540, 490),
-    "synthesizer":  (270, 520),
-    "verifier":     (95, 380),
+    # Tata letak kartu pipeline mengikuti komposisi bertingkat pada gambar referensi.
+    "orchestrator": (120, 125),
+    "researcher":   (365, 125),
+    "expert":       (600, 125),
+    "analyst":      (120, 315),
+    "skeptic":      (365, 315),
+    "synthesizer":  (600, 315),
+    "verifier":     (365, 505),
 }
 
 # (asal, tujuan, label, bias lengkung). bias > 0 melengkung ke hub, < 0 menjauh.
@@ -101,12 +102,15 @@ def _split(text: str, width: int = 12) -> list:
 
 
 def _qpath(a: tuple, b: tuple, k: float) -> tuple:
-    mx, my = (a[0] + b[0]) / 2, (a[1] + b[1]) / 2
-    cx, cy = mx + (HUB[0] - mx) * k, my + (HUB[1] - my) * k
-    path = f"M{a[0]:.0f},{a[1]:.0f} Q{cx:.0f},{cy:.0f} {b[0]:.0f},{b[1]:.0f}"
-    lx = 0.25 * a[0] + 0.5 * cx + 0.25 * b[0]
-    ly = 0.25 * a[1] + 0.5 * cy + 0.25 * b[1]
-    return path, lx, ly
+    """Kabel halus antarkartu; masuk/keluar dari tepi kartu, bukan menembus tengahnya."""
+    dx, dy = b[0] - a[0], b[1] - a[1]
+    width, height = 154 / 2, 72 / 2
+    scale = min(width / max(abs(dx), 1), height / max(abs(dy), 1))
+    x1, y1 = a[0] + dx * scale, a[1] + dy * scale
+    x2, y2 = b[0] - dx * scale, b[1] - dy * scale
+    mx = (x1 + x2) / 2
+    path = f"M{x1:.0f},{y1:.0f} C{mx:.0f},{y1:.0f} {mx:.0f},{y2:.0f} {x2:.0f},{y2:.0f}"
+    return path, mx, (y1 + y2) / 2
 
 
 def mesh_points() -> tuple:
@@ -124,22 +128,18 @@ def _nearest(point: tuple, pool: list, n: int) -> list:
 
 
 def _mesh(live: bool) -> str:
-    center, ring1, ring2 = mesh_points()
-    lines = [(center, p) for p in ring1]
-    lines += [(ring1[i], ring1[(i + 1) % 6]) for i in range(6)]
-    lines += [(p, q) for p in ring1 for q in _nearest(p, ring2, 2)]
-    lines += [(ring2[i], ring2[(i + 1) % 8]) for i in range(8)]
-    for name, (cx, cy) in CUBES.items():  # tiap kubus tersambung samar ke hub
-        lines.append(((cx, cy), _nearest((cx, cy), ring2, 1)[0]))
+    """Latar jaringan berupa jalur sirkuit lurus dan titik cahaya, tanpa hub melingkar."""
     cls = "aog-mesh aog-mesh-live" if live else "aog-mesh"
-    out = [f'<g class="{cls}">']
-    out += [f'<line x1="{a[0]:.0f}" y1="{a[1]:.0f}" x2="{b[0]:.0f}" y2="{b[1]:.0f}"></line>'
-            for a, b in lines]
-    out += [f'<circle cx="{p[0]:.0f}" cy="{p[1]:.0f}" r="3.6"></circle>' for p in ring1 + ring2]
-    out.append(f'<circle class="aog-hubc" cx="{center[0]:.0f}" cy="{center[1]:.0f}" r="11"></circle>')
-    out.append(f'<text class="aog-hubt" x="{center[0]:.0f}" y="{center[1] + 4:.0f}">State</text>')
-    out.append("</g>")
-    return "".join(out)
+    parts = [f'<g class="{cls}">']
+    # Grid elektrik tipis dan titik-titik kecil memberi kedalaman tanpa node melingkar.
+    for x in range(20, 700, 40):
+        parts.append(f'<line x1="{x}" y1="55" x2="{x}" y2="570"></line>')
+    for y in range(60, 600, 40):
+        parts.append(f'<line x1="20" y1="{y}" x2="690" y2="{y}"></line>')
+    for x, y in ((55, 90), (230, 250), (510, 75), (680, 230), (250, 555), (640, 550)):
+        parts.append(f'<circle cx="{x}" cy="{y}" r="2.2"></circle>')
+    parts.append("</g>")
+    return "".join(parts)
 
 
 def _cube(flow, name: str) -> str:
@@ -165,6 +165,19 @@ def _cube(flow, name: str) -> str:
              f'{(" · " + _esc(prov)) if prov else ""}{(" · " + _esc(dur)) if dur else ""}</text>',
              '</g>']
     return "".join(parts)
+
+
+def _terminal(flow, name: str, cx: int, cy: int, label: str, sub: str) -> str:
+    """Kartu input/output pada kanvas utama, agar alur berawal dan berakhir di diagram."""
+    state = norm(flow.state(name))
+    x, y, w, h = cx - 77, cy - 36, 154, 72
+    return (f'<g class="aog-c aog-terminal aog-c-{state}">'
+            f'<rect class="f-card" x="{x}" y="{y}" width="{w}" height="{h}" rx="13"></rect>'
+            f'<rect class="f-inset" x="{x + 5}" y="{y + 5}" width="{w - 10}" height="{h - 10}" rx="10"></rect>'
+            f'<circle class="f-dot" cx="{x + 17}" cy="{cy}" r="4"></circle>'
+            f'<text class="c-lb" x="{cx}" y="{cy - 5}" text-anchor="middle">{_esc(label)}</text>'
+            f'<text class="c-sb" x="{cx}" y="{cy + 15}" text-anchor="middle">{_esc(sub)}</text>'
+            '</g>')
 
 
 # ---------------- panel alur ----------------
@@ -270,6 +283,12 @@ def render(flow) -> str:
              '<text class="aog-mt" x="22" y="32">Mesin Council</text>',
              f'<text class="aog-ms" x="22" y="52">{_esc(_clip(status, 34))}</text>']
     parts.append(_mesh(live))
+    # Koneksi masuk/keluar; sudut membulat menyerupai kabel pada workflow referensi.
+    for src, dst, a, b in (("start", "orchestrator", (120, 505), CUBES["orchestrator"]),
+                           ("verifier", "answer", CUBES["verifier"], (600, 505))):
+        state = edge_cls(node_state(flow, src), node_state(flow, dst))
+        path, _, _ = _qpath(a, b, 0)
+        parts.append(f'<path class="aog-e aog-e-{state}" d="{path}"></path>')
     for src, dst, label, bias in CUBE_EDGES:
         a, b = CUBES[src], CUBES[dst]
         state = edge_cls(node_state(flow, src), node_state(flow, dst))
@@ -280,8 +299,11 @@ def render(flow) -> str:
         if label:
             parts.append(f'<text class="aog-el aog-el-{state}" x="{lx:.0f}" y="{ly - 6:.0f}">'
                          f'{_esc(label)}</text>')
+    # Node input/output menempati posisi kartu tersendiri seperti pada gambar acuan.
+    parts.append(_terminal(flow, "start", 120, 505, "User Input", "Pertanyaan pengguna"))
     for name in CUBES:
         parts.append(_cube(flow, name))
+    parts.append(_terminal(flow, "answer", 600, 505, "Jawaban final", "Council response"))
     parts.append(_graph(flow))
     parts.append("</svg>")
     return "".join(parts)
@@ -292,7 +314,7 @@ CSS = """
 .aog-svgm { width:100%; height:auto; display:block; max-height:calc(100vh - 260px); }
 .aog-mt { fill:#f1eaff; font-size:15px; font-weight:700; letter-spacing:.6px; }
 .aog-ms { fill:#83dfff; font-size:11px; }
-.aog-mesh line { stroke:#5846a2; stroke-opacity:.42; stroke-width:1.1; }
+.aog-mesh line { stroke:#5846a2; stroke-opacity:.13; stroke-width:.8; }
 .aog-mesh circle { fill:#a879ff; fill-opacity:.9; filter:url(#aogGlow); }
 .aog-mesh .aog-hubc { fill:#160d37; stroke:#d36dff; stroke-width:1.8; }
 .aog-mesh .aog-hubt { fill:#f3c5ff; font-size:7.5px; font-weight:700; text-anchor:middle; }
