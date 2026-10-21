@@ -94,6 +94,13 @@ with st.sidebar:
         with st.expander("Statistik panggilan"):
             for n, s in router.stats.items():
                 st.write(f"{n}: {s['ok']} berhasil, {s['fail']} gagal")
+    if st.button("Tes koneksi provider"):
+        with st.spinner("Menguji tiap provider…"):
+            ss.diag = router.diagnose()
+    if ss.get("diag"):
+        for name, ok, msg in ss.diag:
+            st.markdown(f"{'✅' if ok else ('⚪' if ok is None else '❌')} **{name}**")
+            st.caption(msg)
     c1, c2 = st.columns(2)
     if c1.button("Chat baru"):
         ss.messages = []
@@ -161,5 +168,9 @@ if question:
             else:
                 status.update(label="Gagal", state="error", expanded=False)
                 st.error(error or "Pipeline berhenti tanpa hasil.")
+                if router.last_error:
+                    with st.expander("Detail error provider"):
+                        for n, e in router.last_error.items():
+                            st.text(f"{n}: {e}")
                 ss.messages.pop()  # buang pertanyaan yang gagal supaya riwayat tetap bersih
                 ss.n_requests -= 1
