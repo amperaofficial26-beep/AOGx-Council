@@ -5,6 +5,8 @@ CSS = """
 @keyframes aogpulse { 0%,100% { stroke-opacity:.5 } 50% { stroke-opacity:1 } }
 @keyframes aogdash { to { stroke-dashoffset:-24 } }
 @keyframes aogblink { 0%,100% { opacity:.35 } 50% { opacity:1 } }
+@keyframes aogelectric { 0%,100% { opacity:.62 } 50% { opacity:1 } }
+@keyframes aogcharge { to { stroke-dashoffset:-34 } }
 
 .aog-svg { width:100%; height:auto; display:block; }
 .aog-n .aog-box { fill:#0e1726; stroke:#25344c; stroke-width:1.2; transition:all .35s ease; }
@@ -28,16 +30,26 @@ CSS = """
 .aog-n-skipped .aog-box { fill:#0a111d; stroke:#2b3a52; stroke-dasharray:3 5; }
 .aog-n-skipped .aog-lb { fill:#4d5f79; } .aog-n-skipped .aog-sb { fill:#3f5170; }
 
-.aog-e { fill:none; stroke:#243349; stroke-width:1.3; }
-.aog-e-idle { stroke:#22314a; stroke-dasharray:3 6; }
-.aog-e-hot { stroke:#d66aff; stroke-width:2; stroke-dasharray:5 7;
-  animation:aogdash 1.4s linear infinite; filter:url(#aogGlow); }
-.aog-e-live { stroke:#38e8ff; stroke-width:2.4; stroke-dasharray:5 7;
-  animation:aogdash .7s linear infinite; filter:url(#aogGlow); }
-.aog-e-bad { stroke:#f87171; stroke-dasharray:2 5; }
-.aog-e-skip { stroke:#182335; stroke-dasharray:2 7; }
-.aog-el { fill:#3f4f68; font-size:9px; font-weight:600; text-anchor:middle; letter-spacing:.3px; }
-.aog-el-hot, .aog-el-live { fill:#7dd3fc; }
+.aog-e { fill:none; stroke:#9a86ff; stroke-width:2.2; stroke-linecap:round; stroke-dasharray:8 7;
+  animation:aogcharge .85s linear infinite; filter:url(#aogGlow); }
+.aog-e-glow { fill:none; stroke:#9268ff; stroke-width:9; stroke-linecap:round; opacity:.26;
+  filter:url(#aogGlow); animation:aogelectric 1.05s ease-in-out infinite; }
+.aog-e-idle { stroke:#b39cff; }
+.aog-e-glow.aog-e-idle { stroke:#8c64ff; }
+.aog-e-hot { stroke:#ff77e9; stroke-width:2.8; animation:aogcharge .55s linear infinite; }
+.aog-e-glow.aog-e-hot { stroke:#fa58dc; opacity:.42; }
+.aog-e-live { stroke:#8efaff; stroke-width:3.4; animation:aogcharge .3s linear infinite; }
+.aog-e-glow.aog-e-live { stroke:#37e8ff; opacity:.56; }
+.aog-e-bad { stroke:#ff718f; }
+.aog-e-glow.aog-e-bad { stroke:#ff516f; }
+.aog-e-skip { stroke:#33405a; stroke-dasharray:3 8; animation:none; filter:none; }
+.aog-e-particle { fill:#edddff; filter:url(#aogGlow); opacity:.98; }
+.aog-p-soft { opacity:.58; }
+.aog-p-live { fill:#c5ffff; }
+.aog-p-hot { fill:#ffd5ff; }
+.aog-p-bad { fill:#ffc2ca; }
+.aog-el { fill:#8a7dbb; font-size:9px; font-weight:600; text-anchor:middle; letter-spacing:.3px; }
+.aog-el-hot, .aog-el-live { fill:#e4c9ff; }
 .aog-el-skip { fill:#2b3a52; }
 
 .aog-stage { background:linear-gradient(180deg,#0b1220,#070d16); border:1px solid #1b2739;
