@@ -30,8 +30,12 @@ class Router:
         self.last_error: Dict[str, str] = {}  # error terakhir per provider (untuk diagnosis)
 
     # ---- status ----
+    def _usable(self, name: str) -> bool:
+        p = self.providers.get(name)
+        return bool(p and p.available() and config.model_for(name))
+
     def active_providers(self) -> List[str]:
-        return [n for n, p in self.providers.items() if p.available()]
+        return [n for n in self.providers if self._usable(n)]
 
     def _is_cooling(self, name: str) -> bool:
         return self._cooldown_until.get(name, 0) > time.time()
@@ -59,7 +63,7 @@ class Router:
         errors = []
         for name in config.ROUTES.get(role, []):
             provider = self.providers.get(name)
-            if not provider or not provider.available():
+            if not self._usable(name):
                 continue
             if self._is_cooling(name):
                 errors.append(f"{name}: sedang jeda ({self.last_error.get(name, 'error sebelumnya')})")
@@ -84,6 +88,9 @@ class Router:
             if not p.available():
                 out.append((name, None, "tidak aktif (key atau base URL kosong)"))
                 continue
+            if not config.model_for(name):
+                out.append((name, None, f"model belum dipilih (isi {name.upper()}_MODEL)"))
+                continue
             model = config.model_for(name)
             try:
                 text = p.chat(model, [{"role": "user", "content": "Jawab satu kata: halo"}],
@@ -98,6 +105,12 @@ class Router:
             except ProviderError as e:
                 out.append(("tavily", False, str(e)))
         return out
+
+    def list_models(self, name: str) -> List[str]:
+        provider = self.providers.get(name)
+        if not provider or not provider.available():
+            raise ProviderError(f"{name}: key belum diisi")
+        return provider.list_models()
 
     def search(self, query: str, max_results: int = 5):
         if not self.tavily.available():
