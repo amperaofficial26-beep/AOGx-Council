@@ -30,9 +30,9 @@ CSS = """
 
 .aog-e { fill:none; stroke:#243349; stroke-width:1.3; }
 .aog-e-idle { stroke:#22314a; stroke-dasharray:3 6; }
-.aog-e-hot { stroke:#3b82f6; stroke-width:1.8; stroke-dasharray:5 7;
-  animation:aogdash 1.4s linear infinite; }
-.aog-e-live { stroke:#38bdf8; stroke-width:2.2; stroke-dasharray:5 7;
+.aog-e-hot { stroke:#d66aff; stroke-width:2; stroke-dasharray:5 7;
+  animation:aogdash 1.4s linear infinite; filter:url(#aogGlow); }
+.aog-e-live { stroke:#38e8ff; stroke-width:2.4; stroke-dasharray:5 7;
   animation:aogdash .7s linear infinite; filter:url(#aogGlow); }
 .aog-e-bad { stroke:#f87171; stroke-dasharray:2 5; }
 .aog-e-skip { stroke:#182335; stroke-dasharray:2 7; }
