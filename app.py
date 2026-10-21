@@ -61,6 +61,8 @@ def render_answer(msg: dict, idx: int):
     bits = []
     if meta.get("score") is not None:
         bits.append(f"Keyakinan verifier: **{meta['score']:.0%}**")
+    elif meta.get("verified") is False:
+        bits.append("Belum diverifikasi")
     if meta.get("providers"):
         bits.append("Provider: " + ", ".join(meta["providers"]))
     if bits:
@@ -122,6 +124,8 @@ with st.sidebar:
     c1, c2 = st.columns(2)
     if c1.button("Chat baru"):
         ss.messages = []
+        ss.n_requests = 0
+        ss.diag = None
         st.rerun()
     if c2.button("Muat ulang key"):
         get_router.clear()
@@ -179,6 +183,7 @@ if question:
                 status.update(label="Selesai", state="complete", expanded=False)
                 msg = {"role": "assistant", "content": final["answer"],
                        "meta": {"score": final["score"], "issues": final["issues"],
+                                "verified": final["verified"],
                                 "sources": final["sources"], "providers": final["providers"],
                                 "log": log}}
                 ss.messages.append(msg)

@@ -1,5 +1,5 @@
-from core.utils import clip, extract_json, str_list
-from .common import run_agent
+from core.utils import clip, str_list
+from .common import run_json_agent
 
 SYSTEM = """Kamu adalah Orchestrator dalam sistem multi-agen. Tugasmu menganalisis pertanyaan pengguna dan merencanakan cara menanganinya.
 Keluarkan HANYA satu objek JSON (tanpa teks lain) dengan kunci:
@@ -16,11 +16,10 @@ DEFAULT = {"category": "lainnya", "complexity": "medium", "needs_web": False,
 def plan(router, question: str, history: str):
     user = f"Riwayat singkat:\n{history or '(kosong)'}\n\nPertanyaan:\n{clip(question, 3000)}"
     try:
-        text, provider = run_agent(router, "orchestrator", SYSTEM, user,
-                                   temperature=0.2, max_tokens=400)
+        data, provider = run_json_agent(router, "orchestrator", SYSTEM, user,
+                                        temperature=0.2, max_tokens=400)
     except Exception:
         return dict(DEFAULT), "-"
-    data = extract_json(text) or {}
     result = dict(DEFAULT)
     result["category"] = str(data.get("category", "lainnya"))
     if data.get("complexity") in ("simple", "medium", "complex"):

@@ -2,7 +2,7 @@
 run() adalah generator yang menghasilkan event supaya UI bisa menampilkan proses secara live."""
 import json
 from concurrent.futures import ThreadPoolExecutor
-from typing import Callable, Dict, Generator, List
+from typing import Callable, Dict, Generator
 
 import config
 from agent import debaters, orchestrator, researcher, synthesizer, verifier
@@ -90,8 +90,11 @@ def run(router, question: str, mode_name: str, history: str = "") -> Generator[d
         yield _agent("Sintesis", "Penyusun", prov, answer)
 
         # --- Lapis verifikasi + gerbang kualitas ---
+        # Verifikasi mengikuti mode, termasuk untuk pertanyaan sederhana: jawaban pendek
+        # justru paling sering salah fakta, jadi tidak boleh lolos tanpa diperiksa.
         score, issues = None, []
-        if mode["verify"] and not simple:
+        verified = False
+        if mode["verify"]:
             for attempt in range(mode["max_retries"] + 1):
                 yield _status("Verifier memeriksa jawaban…")
                 try:
@@ -100,6 +103,7 @@ def run(router, question: str, mode_name: str, history: str = "") -> Generator[d
                     break
                 used.append(prov)
                 score, issues = v["score"], v["issues"]
+                verified = True
                 yield _agent("Verifikasi", "Verifier", prov,
                              f"Skor: {score:.2f}\n" + ("\n".join(f"- {i}" for i in issues) or "Tidak ada masalah berarti."))
                 if score >= config.QUALITY_THRESHOLD or attempt == mode["max_retries"]:
@@ -111,7 +115,8 @@ def run(router, question: str, mode_name: str, history: str = "") -> Generator[d
                 yield _agent("Revisi", "Penyusun", prov, answer)
 
         yield {"kind": "final", "answer": answer, "score": score, "issues": issues,
-               "sources": sources, "providers": sorted({u for u in used if u and u != "-"})}
+               "verified": verified, "sources": sources,
+               "providers": sorted({u for u in used if u and u != "-"})}
 
     except AllProvidersFailed as e:
         yield {"kind": "error", "text": str(e)}
