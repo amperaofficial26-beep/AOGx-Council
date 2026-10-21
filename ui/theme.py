@@ -115,6 +115,16 @@ CSS = """
 [data-testid="stChatInput"] [data-testid="stFileUploaderFile"] {
   background:#111c2d; border:1px solid #263750; border-radius:14px;
 }
+[data-testid="stForm"] { padding:0 !important; border:0 !important; }
+[data-testid="stTextInput"] label { font-size:10px !important; line-height:1.1 !important;
+  margin-bottom:1px !important; }
+[data-testid="stTextInput"] [data-baseweb="input"] {
+  border:1px solid #2a3547 !important; border-radius:12px !important;
+  min-height:33px; background:#0d1523 !important;
+}
+[data-testid="stTextInput"] input { padding-top:4px !important; padding-bottom:4px !important; }
+[data-testid="stFormSubmitButton"] button { min-height:34px !important; height:34px !important;
+  border-radius:11px !important; padding-top:3px !important; padding-bottom:3px !important; }
 @media (prefers-reduced-motion: reduce) {
   [data-testid="stChatInput"]::before { animation:none; opacity:.24; }
 }
