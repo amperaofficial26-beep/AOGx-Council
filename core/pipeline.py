@@ -5,7 +5,7 @@ from concurrent.futures import ThreadPoolExecutor
 from typing import Callable, Dict, Generator, List
 
 import config
-from agents import debaters, orchestrator, researcher, synthesizer, verifier
+from agent import debaters, orchestrator, researcher, synthesizer, verifier
 from core.router import AllProvidersFailed
 
 ROLES = ["analyst", "skeptic", "expert"]
