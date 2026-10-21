@@ -81,6 +81,24 @@ CSS = """
 .aog-live { display:flex; align-items:center; gap:8px; color:#7dd3fc; font-size:12.5px;
   background:#0b1624; border:1px solid #1c2b42; border-radius:12px; padding:8px 11px; }
 .aog-live b { animation:aogblink 1.2s ease-in-out infinite; font-size:14px; }
+
+/* Composer membulat dengan tombol kirim biru; kartu lampiran disediakan oleh chat_input. */
+[data-testid="stChatInput"] {
+  background:#fffdfa; border:1px solid #ded8ce; border-radius:28px;
+  padding:7px 9px; box-shadow:0 3px 14px rgba(0,0,0,.18);
+}
+[data-testid="stChatInput"] textarea {
+  color:#252a33 !important; font-size:14px !important; min-height:40px !important;
+}
+[data-testid="stChatInput"] textarea::placeholder { color:#999187 !important; opacity:1; }
+[data-testid="stChatInput"] button {
+  background:#3478dc !important; color:#fff !important; border-radius:50% !important;
+  min-width:44px !important; min-height:44px !important; border:0 !important;
+}
+[data-testid="stChatInput"] button:hover { background:#2467c7 !important; }
+[data-testid="stChatInput"] [data-testid="stFileUploaderFile"] {
+  background:#eef4ff; border:1px solid #d8e5fb; border-radius:14px;
+}
 .aog-warn { background:#1c1608; border:1px solid #4a3a12; border-radius:12px;
   padding:9px 12px; color:#fcd34d; font-size:12.5px; }
 </style>
