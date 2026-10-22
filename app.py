@@ -334,6 +334,10 @@ def draw(redraw_log: bool = True):
 draw()
 
 # ---------- Kiri: chat ----------
+# Ruang kosong di dasar kotak chat: CSS fade bawah (.st-key-chat-history) memudarkan ~42px terakhir,
+# jadi tanpa ruang ini kartu thinking dan bubble terakhir terlihat terpotong setengah.
+CHAT_TAIL = '<div style="height:64px"></div>'
+
 with left:
     chat_box = st.container(height=440, border=False, key="chat-history")
     # Native chat composer supports attachment cards (PDF/gambar) where available.
@@ -406,7 +410,7 @@ if question:
                 st.markdown(question)
             ph_live = st.empty()
 
-        ph_live.markdown(thinking.render(flow.stage_text or "Council mulai bekerja"),
+        ph_live.markdown(thinking.render(flow.stage_text or "Council mulai bekerja") + CHAT_TAIL,
                          unsafe_allow_html=True)
 
         log, final, error = [], None, None
@@ -415,9 +419,10 @@ if question:
             if ev["kind"] == "agent":
                 log.append({"role": ev["role"], "provider": ev["provider"],
                             "stage": ev["stage"], "text": ev["text"]})
-                ph_live.markdown(thinking.render(ev["stage"], ev["role"]), unsafe_allow_html=True)
+                ph_live.markdown(thinking.render(ev["stage"], ev["role"]) + CHAT_TAIL,
+                                 unsafe_allow_html=True)
             elif ev["kind"] == "status":
-                ph_live.markdown(thinking.render(ev["text"]), unsafe_allow_html=True)
+                ph_live.markdown(thinking.render(ev["text"]) + CHAT_TAIL, unsafe_allow_html=True)
             elif ev["kind"] == "final":
                 final = ev
             elif ev["kind"] == "error":
@@ -445,6 +450,10 @@ if question:
                     ss.messages.pop()
                     ss.n_requests -= 1
         draw()
+
+# Ruang bawah tetap setelah semua bubble, supaya bubble terakhir tidak terpotong fade.
+with chat_box:
+    st.markdown(CHAT_TAIL, unsafe_allow_html=True)
 
 
 # Panel PR berada di bawah seluruh kolom chat, terpisah dari kontrol chat utama.
