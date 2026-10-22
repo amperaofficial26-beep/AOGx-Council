@@ -49,8 +49,16 @@ html, body, [class*="css"] { font-family: "Inter", ui-sans-serif, system-ui, -ap
   border-radius:18px 18px 18px 5px !important;
 }
 .aog-user-marker, .aog-assistant-marker { display:none !important; }
-/* Jejak langkah sekarang berdampingan dengan Alur Council (tinggi panel ~620px). */
-.aog-log { max-height: 580px; }
+/* Jejak langkah dan Alur Council dibuat lebih rapat ke Mesin Council. */
+.aog-log {
+    max-height: 580px;
+}
+
+.st-key-council-lower-panels {
+    margin-top: -44px !important;
+    position: relative;
+    z-index: 2;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -322,13 +330,16 @@ with right:
     st.markdown(":material/hub: **Mesin proses**")
     ph_chips = st.empty()
     ph_graph = st.empty()
-    # Di bawah mesin: Jejak langkah (kiri, lebih lebar) berdampingan dengan Alur Council (kanan).
-    log_col, flow_col = st.columns([1.55, 1], gap="small")
-    with log_col:
-        st.markdown(":material/receipt_long: **Jejak langkah**")
-        ph_log = st.empty()
-    with flow_col:
-        ph_flow = st.empty()
+    # Panel bawah dirapatkan ke Mesin Council.
+    with st.container(key="council-lower-panels"):
+        log_col, flow_col = st.columns([1.55, 1], gap="small")
+
+        with log_col:
+            st.markdown(":material/receipt_long: **Jejak langkah**")
+            ph_log = st.empty()
+
+        with flow_col:
+            ph_flow = st.empty()
 
     graph_cache = {}
     flow_cache = {}
