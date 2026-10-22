@@ -3,6 +3,11 @@
 Tata letak: 2/4 kiri khusus chat (permanen, tanpa sidebar), 2/4 kanan "mesin" proses agen.
 Di kolom kanan: Mesin Council selebar penuh, lalu di bawahnya "Jejak langkah" dan
 "Alur Council" berdampingan.
+
+Integrasi tambahan:
+- Video Studio: pratinjau video MP4 sebelum diunggah ke YouTube Shorts.
+- Callback OAuth YouTube dipisahkan dari callback OAuth GitHub.
+- Pembuatan video di Dola tetap manual sampai tersedia API resmi yang dapat digunakan.
 """
 import difflib
 import hmac
@@ -19,7 +24,7 @@ from core.utils import clip, extract_json
 from providers.github import (
     GitHubClient, GitHubError, make_oauth_state, verify_oauth_state, exchange_oauth_code,
 )
-from ui import machine, neural, theme, thinking
+from ui import machine, neural, theme, thinking, video_studio
 from ui.flow import CouncilFlow
 
 st.set_page_config(page_title="AOGx Council", page_icon=":material/hub:", layout="wide",
@@ -53,15 +58,8 @@ html, body, [class*="css"] { font-family: "Inter", ui-sans-serif, system-ui, -ap
 }
 .aog-user-marker, .aog-assistant-marker { display:none !important; }
 /* Jejak langkah dan Alur Council dibuat lebih rapat ke Mesin Council. */
-.aog-log {
-    max-height: 580px;
-}
-
-.st-key-council-lower-panels {
-    margin-top: -44px !important;
-    position: relative;
-    z-index: 2;
-}
+.aog-log { max-height: 580px; }
+.st-key-council-lower-panels { margin-top: -44px !important; position: relative; z-index: 2; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -161,36 +159,39 @@ def github_pr_panel():
         client_secret = config.get_secret("GITHUB_CLIENT_SECRET")
         redirect_uri = config.get_secret("GITHUB_REDIRECT_URI")
 
-        # Tangani callback OAuth di halaman aplikasi yang sama.
+        # Jangan proses callback YouTube sebagai callback GitHub.
         params = st.query_params
         oauth_error = params.get("error")
         code = params.get("code")
         returned_state = params.get("state")
-        if oauth_error:
-            st.error("Login GitHub dibatalkan atau ditolak. Silakan coba hubungkan kembali.")
-            st.query_params.clear()
-        elif code or returned_state:
-            if not (code and returned_state and client_secret and
-                    verify_oauth_state(str(returned_state), client_secret)):
-                st.error("Callback OAuth tidak valid atau kedaluwarsa. Hubungkan GitHub kembali.")
+        is_youtube_callback = str(returned_state or "").startswith("yt.")
+
+        if not is_youtube_callback:
+            if oauth_error:
+                st.error("Login GitHub dibatalkan atau ditolak. Silakan coba hubungkan kembali.")
                 st.query_params.clear()
-            else:
-                try:
-                    token = exchange_oauth_code(
-                        client_id, client_secret, str(code), redirect_uri or None
-                    )
-                    user = GitHubClient(token).get_authenticated_user()
-                    ss.gh_oauth_token = token
-                    ss.gh_oauth_user = user
-                    ss.pop("gh_repositories", None)
-                    ss.pop("gh_snapshot", None)
-                    ss.pop("gh_changes", None)
-                    ss.pop("gh_result", None)
+            elif code or returned_state:
+                if not (code and returned_state and client_secret and
+                        verify_oauth_state(str(returned_state), client_secret)):
+                    st.error("Callback OAuth tidak valid atau kedaluwarsa. Hubungkan GitHub kembali.")
                     st.query_params.clear()
-                    st.rerun()
-                except GitHubError as exc:
-                    st.error(str(exc))
-                    st.query_params.clear()
+                else:
+                    try:
+                        token = exchange_oauth_code(
+                            client_id, client_secret, str(code), redirect_uri or None
+                        )
+                        user = GitHubClient(token).get_authenticated_user()
+                        ss.gh_oauth_token = token
+                        ss.gh_oauth_user = user
+                        ss.pop("gh_repositories", None)
+                        ss.pop("gh_snapshot", None)
+                        ss.pop("gh_changes", None)
+                        ss.pop("gh_result", None)
+                        st.query_params.clear()
+                        st.rerun()
+                    except GitHubError as exc:
+                        st.error(str(exc))
+                        st.query_params.clear()
 
         if not client_id or not client_secret or not redirect_uri:
             st.info(
@@ -426,11 +427,9 @@ with right:
     # Panel bawah dirapatkan ke Mesin Council.
     with st.container(key="council-lower-panels"):
         log_col, flow_col = st.columns([1.55, 1], gap="small")
-
         with log_col:
             st.markdown(":material/receipt_long: **Jejak langkah**")
             ph_log = st.empty()
-
         with flow_col:
             ph_flow = st.empty()
 
@@ -449,20 +448,17 @@ def draw(redraw_log: bool = True):
 draw()
 
 # ---------- Kiri: chat ----------
-# Ruang kosong di dasar kotak chat: CSS fade bawah (.st-key-chat-history) memudarkan ~42px terakhir,
-# jadi tanpa ruang ini kartu thinking dan bubble terakhir terlihat terpotong setengah.
 CHAT_TAIL = '<div style="height:64px"></div>'
 
 with left:
     chat_box = st.container(height=440, border=False, key="chat-history")
-    # Native chat composer supports attachment cards (PDF/gambar) where available.
     try:
         submitted = st.chat_input(
             "Kirim pesan ke AOGx Council…",
             accept_file="multiple",
             file_type=["pdf", "png", "jpg", "jpeg", "webp", "txt", "md"],
         )
-    except TypeError:  # kompatibel dengan Streamlit lama
+    except TypeError:
         submitted = st.chat_input("Kirim pesan ke AOGx Council…")
     question = ""
     if submitted is not None:
@@ -475,8 +471,6 @@ with left:
         else:
             question = str(submitted).strip()
 
-# Riwayat chat. Penanda .aog-user-marker / .aog-assistant-marker dipakai CSS di atas
-# untuk meratakan bubble user ke kanan dan bubble AI ke kiri.
 with chat_box:
     if not ss.messages and not question:
         st.markdown('<div class="aog-warn">Belum ada pertanyaan. Kirim satu pertanyaan, lalu '
@@ -512,22 +506,17 @@ if question:
                            verify=cfg["verify"], max_retries=cfg["max_retries"])
         ss.flow = flow
         draw()
-
         run_router = router
         if demo:
             from ui.demo import DemoRouter
             run_router = DemoRouter()
-
-        # Urutan: bubble user -> kartu thinking -> bubble AI (dibuat setelah proses selesai).
         with chat_box:
             with st.chat_message("user"):
                 st.markdown('<span class="aog-user-marker"></span>', unsafe_allow_html=True)
                 st.markdown(question)
             ph_live = st.empty()
-
         ph_live.markdown(thinking.render(flow.stage_text or "Council mulai bekerja") + CHAT_TAIL,
                          unsafe_allow_html=True)
-
         log, final, error = [], None, None
         for ev in pipeline.run(run_router, question, mode, history):
             action = flow.consume(ev)
@@ -543,7 +532,6 @@ if question:
             elif ev["kind"] == "error":
                 error = ev["text"]
             draw(redraw_log=(action in ("log", "error", "final")))
-
         ph_live.empty()
         with chat_box:
             with st.chat_message("assistant"):
@@ -566,11 +554,11 @@ if question:
                     ss.n_requests -= 1
         draw()
 
-# Ruang bawah tetap setelah semua bubble, supaya bubble terakhir tidak terpotong fade.
 with chat_box:
     st.markdown(CHAT_TAIL, unsafe_allow_html=True)
 
-
-# Panel PR berada di bawah seluruh kolom chat, terpisah dari kontrol chat utama.
+# Panel GitHub dan Video Studio diletakkan di bawah kolom chat.
 with left:
     github_pr_panel()
+    with st.expander("Video Studio · Dola → YouTube Shorts", expanded=False):
+        video_studio.render()
