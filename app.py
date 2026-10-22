@@ -336,27 +336,11 @@ def draw(redraw_log: bool = True):
 draw()
 
 # ---------- Kiri: chat ----------
+# GANTI semua isi app.py mulai dari baris komentar ini sampai akhir file dengan kode di bawah.
+# Urutan tampilan yang benar: bubble user -> kartu thinking -> bubble AI (hanya setelah selesai).
 with left:
-    chat_box = st.container(height=440, border=False, key="chat-history")
-    # Native chat composer supports attachment cards (PDF/gambar) where available.
-    try:
-        submitted = st.chat_input(
-            "Kirim pesan ke AOGx Council…",
-            accept_file="multiple",
-            file_type=["pdf", "png", "jpg", "jpeg", "webp", "txt", "md"],
-        )
-    except TypeError:  # kompatibel dengan Streamlit lama
-        submitted = st.chat_input("Kirim pesan ke AOGx Council…")
-    question = ""
-    if submitted is not None:
-        if hasattr(submitted, "text"):
-            question = (submitted.text or "").strip()
-            attachments = list(submitted.files or [])
-            if attachments:
-                names = ", ".join(f.name for f in attachments)
-                question = (question + "\n\n" if question else "") + f"Lampiran: {names}"
-        else:
-            question = str(submitted).strip()
+    chat_box = st.container(height=560, border=False)
+    question = st.chat_input("Tanyakan sesuatu ke AOGx Council…")
 
 with chat_box:
     if not ss.messages and not question:
@@ -367,22 +351,23 @@ with chat_box:
     for i, m in enumerate(ss.messages):
         with st.chat_message(m["role"]):
             if m["role"] == "user":
-                st.markdown('<span class="aog-user-marker"></span>', unsafe_allow_html=True)
                 st.markdown(m["content"])
             else:
                 render_answer(m, i)
-    ph_live = st.empty()
 
 if question:
     question = question.strip()
     usable = demo or bool(active)
     if len(question) > config.MAX_QUESTION_CHARS:
-        st.error(f"Pertanyaan terlalu panjang (maks {config.MAX_QUESTION_CHARS} karakter).")
+        with chat_box:
+            st.error(f"Pertanyaan terlalu panjang (maks {config.MAX_QUESTION_CHARS} karakter).")
     elif ss.n_requests >= config.MAX_REQUESTS_PER_SESSION:
-        st.error("Batas permintaan sesi ini tercapai. Klik \"Chat baru\" atau muat ulang halaman.")
+        with chat_box:
+            st.error("Batas permintaan sesi ini tercapai. Klik \"Chat baru\" atau muat ulang halaman.")
     elif not usable:
-        st.error("Belum ada provider aktif. Isi API key di `.env` atau Streamlit secrets "
-                 "(lihat `env.example`).")
+        with chat_box:
+            st.error("Belum ada provider aktif. Isi API key di `.env` atau Streamlit secrets "
+                     "(lihat `env.example`).")
     else:
         history = history_text(ss.messages)
         ss.messages.append({"role": "user", "content": question})
@@ -397,13 +382,15 @@ if question:
             from ui.demo import DemoRouter
             run_router = DemoRouter()
 
+        # 1) bubble user, 2) tempat kartu thinking tepat di bawahnya.
+        #    Bubble AI sengaja belum dibuat di sini, supaya tidak ada bubble kosong.
         with chat_box:
             with st.chat_message("user"):
-                st.markdown('<span class="aog-user-marker"></span>', unsafe_allow_html=True)
                 st.markdown(question)
-            with st.chat_message("assistant"):
-                st.markdown('<span class="aog-assistant-marker"></span>', unsafe_allow_html=True)
-                ph_live.markdown(thinking.render(flow.stage_text or "Council mulai bekerja"), unsafe_allow_html=True)
+            ph_live = st.empty()
+
+        ph_live.markdown(thinking.render(flow.stage_text or "Council mulai bekerja"),
+                         unsafe_allow_html=True)
 
         log, final, error = [], None, None
         for ev in pipeline.run(run_router, question, mode, history):
@@ -411,7 +398,7 @@ if question:
             if ev["kind"] == "agent":
                 log.append({"role": ev["role"], "provider": ev["provider"],
                             "stage": ev["stage"], "text": ev["text"]})
-                ph_live.markdown(thinking.render(flow.stage_text or "Council mulai bekerja"), unsafe_allow_html=True)
+                ph_live.markdown(thinking.render(ev["stage"], ev["role"]), unsafe_allow_html=True)
             elif ev["kind"] == "status":
                 ph_live.markdown(thinking.render(ev["text"]), unsafe_allow_html=True)
             elif ev["kind"] == "final":
@@ -420,6 +407,7 @@ if question:
                 error = ev["text"]
             draw(redraw_log=(action in ("log", "error", "final")))
 
+        # 3) proses selesai: hapus kartu thinking, baru munculkan bubble AI (satu saja).
         ph_live.empty()
         with chat_box:
             with st.chat_message("assistant"):
@@ -440,7 +428,7 @@ if question:
                     ss.messages.pop()
                     ss.n_requests -= 1
         draw()
-
+      
 # Panel PR berada di bawah seluruh kolom chat, terpisah dari kontrol chat utama.
 with left:
     github_pr_panel()
