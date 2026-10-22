@@ -414,7 +414,6 @@ if question:
                 ph_live.markdown(thinking.render(flow.stage_text or "Council mulai bekerja"), unsafe_allow_html=True)
             elif ev["kind"] == "status":
                 ph_live.markdown(thinking.render(ev["text"]), unsafe_allow_html=True)
-                                 unsafe_allow_html=True)
             elif ev["kind"] == "final":
                 final = ev
             elif ev["kind"] == "error":
