@@ -7,6 +7,9 @@ CSS = """
 @keyframes aogblink { 0%,100% { opacity:.35 } 50% { opacity:1 } }
 @keyframes aogelectric { 0%,100% { opacity:.62 } 50% { opacity:1 } }
 @keyframes aogcharge { to { stroke-dashoffset:-34 } }
+@keyframes aogstar { 0%,100% { opacity:.12 } 50% { opacity:.9 } }
+@keyframes aogHalo { 0%,100% { opacity:.22 } 50% { opacity:.62 } }
+@keyframes aogStatus { 0%,100% { opacity:.55 } 50% { opacity:1 } }
 
 .aog-svg { width:100%; height:auto; display:block; }
 .aog-n .aog-box { fill:#0e1726; stroke:#25344c; stroke-width:1.2; transition:all .35s ease; }
@@ -34,7 +37,8 @@ CSS = """
   animation:aogcharge .85s linear infinite; filter:url(#aogGlow); }
 .aog-e-glow { fill:none; stroke:#9268ff; stroke-width:9; stroke-linecap:round; opacity:.26;
   filter:url(#aogGlow); animation:aogelectric 1.05s ease-in-out infinite; }
-.aog-e-idle { stroke:#b39cff; }
+.aog-e-idle { stroke:#525b7f; stroke-width:1.2; stroke-dasharray:3 9;
+  opacity:.5; animation:none; filter:none; }
 .aog-e-glow.aog-e-idle { stroke:#8c64ff; }
 .aog-e-hot { stroke:#ff77e9; stroke-width:2.8; animation:aogcharge .55s linear infinite; }
 .aog-e-glow.aog-e-hot { stroke:#fa58dc; opacity:.42; }
