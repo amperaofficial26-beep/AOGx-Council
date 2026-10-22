@@ -17,12 +17,14 @@ from providers.github import GitHubClient, GitHubError
 from ui import machine, theme
 from ui.flow import CouncilFlow
 from ui import machine, neural, theme
+from ui import machine, thinking, theme
 
 st.set_page_config(page_title="AOGx Council", page_icon=":material/hub:", layout="wide",
                    initial_sidebar_state="collapsed")
 
 st.markdown(theme.CSS, unsafe_allow_html=True)
 st.markdown(machine.CSS, unsafe_allow_html=True)
+st.markdown(thinking.CSS, unsafe_allow_html=True)
 st.markdown("""
 <style>
 .block-container { padding-top: 1rem; padding-bottom: 1rem; max-width: 1840px; }
