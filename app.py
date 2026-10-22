@@ -403,9 +403,7 @@ if question:
                 st.markdown(question)
             with st.chat_message("assistant"):
                 st.markdown('<span class="aog-assistant-marker"></span>', unsafe_allow_html=True)
-                ph_live.markdown(f'<div class="aog-live"><b>●</b>'
-                                 f'<span>{flow.stage_text or "Council mulai bekerja…"}</span></div>',
-                                 unsafe_allow_html=True)
+                ph_live.markdown(thinking.render(flow.stage_text or "Council mulai bekerja"), unsafe_allow_html=True)
 
         log, final, error = [], None, None
         for ev in pipeline.run(run_router, question, mode, history):
@@ -413,10 +411,9 @@ if question:
             if ev["kind"] == "agent":
                 log.append({"role": ev["role"], "provider": ev["provider"],
                             "stage": ev["stage"], "text": ev["text"]})
-                ph_live.markdown(f'<div class="aog-live"><b>●</b><span>{ev["role"]} — '
-                                 f'{ev["stage"]}</span></div>', unsafe_allow_html=True)
+               ph_live.markdown(thinking.render(flow.stage_text or "Council mulai bekerja"), unsafe_allow_html=True)
             elif ev["kind"] == "status":
-                ph_live.markdown(f'<div class="aog-live"><b>●</b><span>{ev["text"]}</span></div>',
+               ph_live.markdown(thinking.render(ev["text"]), unsafe_allow_html=True)
                                  unsafe_allow_html=True)
             elif ev["kind"] == "final":
                 final = ev
