@@ -1,6 +1,8 @@
 """AOGx-Council: diskusi multi-agen AI dengan orchestrator dan penyaringan jawaban berlapis.
 
-Tata letak: 1/4 kiri khusus chat (permanen, tanpa sidebar), 3/4 kanan "mesin" proses agen.
+Tata letak: 2/4 kiri khusus chat (permanen, tanpa sidebar), 2/4 kanan "mesin" proses agen.
+Di kolom kanan: Mesin Council selebar penuh, lalu di bawahnya "Jejak langkah" dan
+"Alur Council" berdampingan.
 """
 import difflib
 import hmac
@@ -47,6 +49,8 @@ html, body, [class*="css"] { font-family: "Inter", ui-sans-serif, system-ui, -ap
   border-radius:18px 18px 18px 5px !important;
 }
 .aog-user-marker, .aog-assistant-marker { display:none !important; }
+/* Jejak langkah sekarang berdampingan dengan Alur Council (tinggi panel ~620px). */
+.aog-log { max-height: 580px; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -318,15 +322,22 @@ with right:
     st.markdown(":material/hub: **Mesin proses**")
     ph_chips = st.empty()
     ph_graph = st.empty()
-    st.markdown(":material/receipt_long: **Jejak langkah**")
-    ph_log = st.empty()
+    # Di bawah mesin: Jejak langkah (kiri, lebih lebar) berdampingan dengan Alur Council (kanan).
+    log_col, flow_col = st.columns([1.55, 1], gap="small")
+    with log_col:
+        st.markdown(":material/receipt_long: **Jejak langkah**")
+        ph_log = st.empty()
+    with flow_col:
+        ph_flow = st.empty()
 
     graph_cache = {}
+    flow_cache = {}
 
 
 def draw(redraw_log: bool = True):
     ph_chips.markdown(theme.panel(flow.render_chips() + theme.LEGEND), unsafe_allow_html=True)
     neural.show(ph_graph, flow, graph_cache)
+    neural.show_flow(ph_flow, flow, flow_cache)
     if redraw_log:
         ph_log.markdown(theme.panel(flow.render_log()), unsafe_allow_html=True)
 
