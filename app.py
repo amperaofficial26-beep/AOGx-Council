@@ -411,9 +411,9 @@ if question:
             if ev["kind"] == "agent":
                 log.append({"role": ev["role"], "provider": ev["provider"],
                             "stage": ev["stage"], "text": ev["text"]})
-               ph_live.markdown(thinking.render(flow.stage_text or "Council mulai bekerja"), unsafe_allow_html=True)
+                ph_live.markdown(thinking.render(flow.stage_text or "Council mulai bekerja"), unsafe_allow_html=True)
             elif ev["kind"] == "status":
-               ph_live.markdown(thinking.render(ev["text"]), unsafe_allow_html=True)
+                ph_live.markdown(thinking.render(ev["text"]), unsafe_allow_html=True)
                                  unsafe_allow_html=True)
             elif ev["kind"] == "final":
                 final = ev
