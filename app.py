@@ -319,7 +319,7 @@ draw()
 
 # ---------- Kiri: chat ----------
 with left:
-    chat_box = st.container(height=560, border=False)
+    chat_box = st.container(height=440, border=False)
     # Native chat composer supports attachment cards (PDF/gambar) where available.
     try:
         submitted = st.chat_input(
