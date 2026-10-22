@@ -119,6 +119,12 @@ CSS = """
 [data-testid="stChatInput"] [data-testid="stFileUploaderFile"] {
   background:#111c2d; border:1px solid #263750; border-radius:14px;
 }
+/* Fades soft at the top/bottom edge of the scrollable chat history. */
+.st-key-chat-history {
+  -webkit-mask-image:linear-gradient(to bottom,transparent 0,black 28px,black calc(100% - 42px),transparent 100%);
+  mask-image:linear-gradient(to bottom,transparent 0,black 28px,black calc(100% - 42px),transparent 100%);
+  mask-repeat:no-repeat; -webkit-mask-repeat:no-repeat;
+}
 [data-testid="stForm"] { padding:0 !important; border:0 !important; }
 [data-testid="stTextInput"] label { font-size:10px !important; line-height:1.1 !important;
   margin-bottom:1px !important; }
