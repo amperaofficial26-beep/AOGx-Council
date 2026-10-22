@@ -108,7 +108,7 @@ CSS = """
 }
 [data-testid="stChatInput"] textarea {
   color:#e5eaf4 !important; font-size:14px !important; min-height:44px !important;
-  background:transparent !important;
+  background:transparent !important; transform:translateY(4px);
 }
 [data-testid="stChatInput"] textarea::placeholder { color:#9aa6b8 !important; opacity:1; }
 [data-testid="stChatInput"] button {
