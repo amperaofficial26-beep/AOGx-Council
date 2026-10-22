@@ -16,6 +16,7 @@ from core.utils import clip, extract_json
 from providers.github import GitHubClient, GitHubError
 from ui import machine, theme
 from ui.flow import CouncilFlow
+from ui import machine, neural, theme
 
 st.set_page_config(page_title="AOGx Council", page_icon=":material/hub:", layout="wide",
                    initial_sidebar_state="collapsed")
@@ -320,10 +321,12 @@ with right:
     st.markdown(":material/receipt_long: **Jejak langkah**")
     ph_log = st.empty()
 
+    graph_cache = {}
+
 
 def draw(redraw_log: bool = True):
     ph_chips.markdown(theme.panel(flow.render_chips() + theme.LEGEND), unsafe_allow_html=True)
-    ph_graph.markdown(theme.stage(machine.render(flow)), unsafe_allow_html=True)
+    neural.show(ph_graph, flow, graph_cache)
     if redraw_log:
         ph_log.markdown(theme.panel(flow.render_log()), unsafe_allow_html=True)
 
