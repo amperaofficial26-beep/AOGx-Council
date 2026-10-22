@@ -32,8 +32,20 @@ html, body, [class*="css"] { font-family: "Inter", ui-sans-serif, system-ui, -ap
 .aog-title { font-size: 1.5rem; font-weight: 800; letter-spacing: .5px; line-height: 1.15;
   background: linear-gradient(90deg, #e5e7eb, #94a3b8 60%, #cbd5e1);
   -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-[data-testid="stChatMessage"] { background: #0d1523; border: 1px solid #1a2740;
-  border-radius: 14px; padding: .6rem .7rem; margin-bottom: .5rem; }
+[data-testid="stChatMessage"] { background:#0d1523; border:1px solid #1a2740;
+  border-radius:18px; padding:.6rem .7rem; margin-bottom:.6rem; }
+[data-testid="stChatMessage"]:has(.aog-user-marker) {
+  width:fit-content !important; max-width:86% !important; align-self:flex-end !important;
+  margin-left:auto !important; margin-right:0 !important; flex-direction:row-reverse;
+  background:#12483d !important; border-color:#216d59 !important;
+  border-radius:18px 18px 5px 18px !important;
+}
+[data-testid="stChatMessage"]:has(.aog-assistant-marker) {
+  width:fit-content !important; max-width:96% !important; align-self:flex-start !important;
+  margin-right:auto !important; background:#0d1523 !important;
+  border-radius:18px 18px 18px 5px !important;
+}
+.aog-user-marker, .aog-assistant-marker { display:none !important; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -73,6 +85,7 @@ def history_text(messages, pairs: int = 3) -> str:
 
 
 def render_answer(msg: dict, idx: int):
+    st.markdown('<span class="aog-assistant-marker"></span>', unsafe_allow_html=True)
     st.markdown(msg["content"])
     meta = msg.get("meta", {})
     bits = []
@@ -349,6 +362,7 @@ with chat_box:
     for i, m in enumerate(ss.messages):
         with st.chat_message(m["role"]):
             if m["role"] == "user":
+                st.markdown('<span class="aog-user-marker"></span>', unsafe_allow_html=True)
                 st.markdown(m["content"])
             else:
                 render_answer(m, i)
@@ -380,8 +394,10 @@ if question:
 
         with chat_box:
             with st.chat_message("user"):
+                st.markdown('<span class="aog-user-marker"></span>', unsafe_allow_html=True)
                 st.markdown(question)
             with st.chat_message("assistant"):
+                st.markdown('<span class="aog-assistant-marker"></span>', unsafe_allow_html=True)
                 ph_live.markdown(f'<div class="aog-live"><b>●</b>'
                                  f'<span>{flow.stage_text or "Council mulai bekerja…"}</span></div>',
                                  unsafe_allow_html=True)
