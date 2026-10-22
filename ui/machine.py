@@ -115,7 +115,7 @@ def _qpath(a: tuple, b: tuple, k: float) -> tuple:
 
 def _wire(path: str, state: str) -> str:
     """Kabel berlapis neon dengan partikel listrik yang terus bergerak di sepanjang jalur."""
-    if state in ("skip",):
+    if state in ("skip", "idle"):
         return f'<path class="aog-e aog-e-{state}" d="{path}"></path>'
     return (f'<path class="aog-e-glow aog-e-{state}" d="{path}"></path>'
             f'<path class="aog-e aog-e-{state}" d="{path}"></path>'
@@ -150,8 +150,12 @@ def _mesh(live: bool) -> str:
         parts.append(f'<line x1="{x}" y1="55" x2="{x}" y2="570"></line>')
     for y in range(60, 600, 40):
         parts.append(f'<line x1="20" y1="{y}" x2="690" y2="{y}"></line>')
-    for x, y in ((55, 90), (230, 250), (510, 75), (680, 230), (250, 555), (640, 550)):
-        parts.append(f'<circle cx="{x}" cy="{y}" r="2.2"></circle>')
+    for i, (x, y) in enumerate(((55, 90), (230, 250), (510, 75), (680, 230),
+                                 (250, 555), (640, 550), (205, 190), (500, 455))):
+        parts.append(f'<circle class="aog-star" cx="{x}" cy="{y}" r="{1.5 + (i % 3) * .45:.1f}">'
+                     f'<animate attributeName="opacity" values=".12;.85;.12" '
+                     f'dur="{2.1 + i * .27:.2f}s" begin="-{i * .31:.2f}s" '
+                     f'repeatCount="indefinite"></animate></circle>')
     parts.append("</g>")
     return "".join(parts)
 
@@ -169,7 +173,9 @@ def _cube(flow, name: str) -> str:
     prov = flow.providers.get(name, "")
     dur = flow.durations.get(name, "")
     parts = [f'<g class="aog-c aog-agent-{name} aog-c-{state}">',
-             f'<rect class="f-card" x="{x:.0f}" y="{y:.0f}" width="{width}" height="{height}" rx="13"></rect>',
+             f'<rect class="f-halo" x="{x - 4:.0f}" y="{y - 4:.0f}" width="{width + 8}" '
+             f'height="{height + 8}" rx="18"></rect>',
+             f'<rect class="f-card" x="{x:.0f}" y="{y:.0f}" width="{width}" height="{height}" rx="16"></rect>',
              f'<rect class="f-inset" x="{x + 5:.0f}" y="{y + 5:.0f}" width="{width - 10}" '
              f'height="{height - 10}" rx="10"></rect>',
              f'<circle class="f-dot" cx="{x + 17:.0f}" cy="{cy:.0f}" r="4"></circle>',
@@ -186,7 +192,8 @@ def _terminal(flow, name: str, cx: int, cy: int, label: str, sub: str) -> str:
     state = norm(flow.state(name))
     x, y, w, h = cx - 95, cy - 45, 190, 90
     return (f'<g class="aog-c aog-terminal aog-terminal-{name} aog-c-{state}">'
-            f'<rect class="f-card" x="{x}" y="{y}" width="{w}" height="{h}" rx="13"></rect>'
+            f'<rect class="f-halo" x="{x - 4}" y="{y - 4}" width="{w + 8}" height="{h + 8}" rx="18"></rect>'
+            f'<rect class="f-card" x="{x}" y="{y}" width="{w}" height="{h}" rx="16"></rect>'
             f'<rect class="f-inset" x="{x + 5}" y="{y + 5}" width="{w - 10}" height="{h - 10}" rx="10"></rect>'
             f'<circle class="f-dot" cx="{x + 17}" cy="{cy}" r="4"></circle>'
             f'<text class="c-lb" x="{cx}" y="{cy - 5}" text-anchor="middle">{_esc(label)}</text>'
@@ -329,13 +336,15 @@ CSS = """
 .aog-mt { fill:#f1eaff; font-size:15px; font-weight:700; letter-spacing:.6px; }
 .aog-ms { fill:#83dfff; font-size:11px; }
 .aog-mesh line { stroke:#5846a2; stroke-opacity:.13; stroke-width:.8; }
-.aog-mesh circle { fill:#a879ff; fill-opacity:.9; filter:url(#aogGlow); }
+.aog-mesh circle { fill:#c7aaff; fill-opacity:.75; filter:url(#aogGlow); }
+.aog-mesh .aog-star { fill:#f1dcff; }
 .aog-mesh .aog-hubc { fill:#160d37; stroke:#d36dff; stroke-width:1.8; }
 .aog-mesh .aog-hubt { fill:#f3c5ff; font-size:7.5px; font-weight:700; text-anchor:middle; }
 .aog-mesh-live line { stroke:#42d9ff; stroke-opacity:1; stroke-dasharray:4 6; animation:aogdash 1.2s linear infinite; }
 .aog-mesh-live circle { fill:#42d9ff; animation:aogblink 1.4s ease-in-out infinite; }
 
 .aog-c text { font-family:Inter,ui-sans-serif,system-ui,sans-serif; pointer-events:none; }
+.aog-c .f-halo { fill:none; stroke:#8d75ff; stroke-width:4; opacity:.1; filter:url(#aogGlow); }
 .aog-c .f-card { fill:#101532; stroke:#7661ff; stroke-width:2.2; transition:all .35s ease; }
 .aog-c .f-inset { fill:#171c48; fill-opacity:.9; stroke:#5a49d4; stroke-width:1.2; }
 .aog-c .f-dot { fill:#46dcff; filter:url(#aogGlow); }
@@ -356,15 +365,19 @@ CSS = """
 .aog-terminal-answer .f-inset { stroke:#ce438d; fill:#321839; }
 .aog-c-pending .f-card { fill:#0c1128; stroke-opacity:.82; }
 .aog-c-pending .f-inset { fill:#111631; }
+.aog-c-pending .f-dot { animation:aogStatus 2.4s ease-in-out infinite; }
 .aog-c-running { filter:url(#aogGlow); }
+.aog-c-running .f-halo { stroke:#55eaff; opacity:.55; animation:aogHalo 1.4s ease-in-out infinite; }
 .aog-c-running .f-card { fill:#102c52; stroke:#78f2ff; stroke-width:2.7; animation:aogpulse 1.3s ease-in-out infinite; }
 .aog-c-running .f-inset { fill:#124878; stroke:#a4f7ff; }
 .aog-c-running .f-dot { fill:#fff; }
 .aog-c-running text { fill:#fff; }
+.aog-c-done .f-halo { stroke:#45f2b0; opacity:.3; }
 .aog-c-done .f-card { fill:#0d382f; stroke:#45f2b0; }
 .aog-c-done .f-inset { fill:#105544; stroke:#74ffd0; }
 .aog-c-done text { fill:#ddfff2; }
 .aog-c-done .f-dot { fill:#5dffb5; }
+.aog-c-failed .f-halo { stroke:#ff718f; opacity:.38; }
 .aog-c-failed .f-card { fill:#451b31; stroke:#ff718f; }
 .aog-c-failed .f-inset { fill:#652039; stroke:#ff9bb3; }
 .aog-c-failed text { fill:#fff0f3; }
