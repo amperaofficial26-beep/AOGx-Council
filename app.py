@@ -52,56 +52,6 @@ html, body, [class*="css"] { font-family: "Inter", ui-sans-serif, system-ui, -ap
   border-radius:18px 18px 18px 5px !important;
 }
 .aog-user-marker, .aog-assistant-marker { display:none !important; }
-/* Kartu ringkasan mesin dibuat lebih kecil agar hemat ruang. */
-.aog-chips {
-    gap: 6px !important;
-}
-.aog-chip {
-    min-width: 64px !important;
-    padding: 3px 8px !important;
-    border-radius: 9px !important;
-}
-.aog-chip span {
-    font-size: 8px !important;
-    letter-spacing: .7px !important;
-}
-.aog-chip b {
-    font-size: 11.5px !important;
-    line-height: 1.2 !important;
-}
-.aog-legend {
-    gap: 10px !important;
-    margin-top: 5px !important;
-    font-size: 10px !important;
-}
-
-/* Mesin Council: ruang vertikal ditambah; teks dan garis dibuat lebih tegas. */
-.st-key-council-machine-graph {
-    width: 100% !important;
-    min-height: 680px !important;
-}
-.st-key-council-machine-graph [data-testid="stIFrame"],
-.st-key-council-machine-graph iframe {
-    width: 100% !important;
-    height: 680px !important;
-    min-height: 680px !important;
-    border: 0 !important;
-}
-.st-key-council-machine-graph svg {
-    width: 100% !important;
-    height: 680px !important;
-    min-height: 680px !important;
-    display: block !important;
-    overflow: visible !important;
-}
-.st-key-council-machine-graph svg text {
-    font-size: 15px !important;
-    font-weight: 600 !important;
-}
-.st-key-council-machine-graph svg foreignObject {
-    overflow: visible !important;
-}
-
 /* Jejak langkah dan Alur Council dibuat lebih rapat ke Mesin Council. */
 .aog-log {
     max-height: 580px;
@@ -978,8 +928,7 @@ ss.flow = flow
 with right:
     st.markdown(":material/hub: **Mesin proses**")
     ph_chips = st.empty()
-    with st.container(key="council-machine-graph"):
-        ph_graph = st.empty()
+    ph_graph = st.empty()
     # Panel bawah dirapatkan ke Mesin Council.
     with st.container(key="council-lower-panels"):
         log_col, flow_col = st.columns([1.55, 1], gap="small")
@@ -1032,8 +981,6 @@ with left:
         else:
             question = str(submitted).strip()
 
-    # Status proses di luar kontainer riwayat chat yang memiliki scroll sendiri.
-    live_status = st.empty()
 
 
 # Muat pesan analisis otomatis setelah pengguna memilih repo + branch dan menekan tombol.
@@ -1058,6 +1005,9 @@ with chat_box:
                 render_user_message(m)
             else:
                 render_answer(m, i)
+    # Placeholder loading ditempatkan di dalam riwayat chat, tepat setelah pesan,
+    # agar tidak dirender di bawah composer chat atau panel GitHub.
+    live_status = st.empty()
 
 if question:
     question = question.strip()
@@ -1100,7 +1050,7 @@ if question:
         answer = ""
         provider = None
         live_status.markdown(
-            thinking.render("AOGx sedang menyiapkan perubahan pada repo…"),
+            thinking.render("AOGx sedang menyiapkan perubahan pada repo…") + CHAT_TAIL,
             unsafe_allow_html=True,
         )
         snapshot = ss.get("gh_snapshot") or {}
@@ -1190,7 +1140,7 @@ if question:
                 render_user_message({"role": "user", "content": question})
 
         live_status.markdown(
-            thinking.render(flow.stage_text or "Council mulai bekerja"),
+            thinking.render(flow.stage_text or "Council mulai bekerja") + CHAT_TAIL,
             unsafe_allow_html=True,
         )
 
