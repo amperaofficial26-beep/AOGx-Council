@@ -52,6 +52,33 @@ html, body, [class*="css"] { font-family: "Inter", ui-sans-serif, system-ui, -ap
   border-radius:18px 18px 18px 5px !important;
 }
 .aog-user-marker, .aog-assistant-marker { display:none !important; }
+/* Mesin Council: panel lebih tinggi dan elemen diagram lebih mudah dibaca. */
+.st-key-council-machine-graph {
+    width: 100% !important;
+    min-height: 560px !important;
+}
+.st-key-council-machine-graph [data-testid="stIFrame"],
+.st-key-council-machine-graph iframe {
+    width: 100% !important;
+    height: 560px !important;
+    min-height: 560px !important;
+    border: 0 !important;
+}
+.st-key-council-machine-graph svg {
+    width: 100% !important;
+    height: 560px !important;
+    min-height: 560px !important;
+    display: block !important;
+    overflow: visible !important;
+}
+.st-key-council-machine-graph svg text {
+    font-size: 13px !important;
+    font-weight: 600 !important;
+}
+.st-key-council-machine-graph svg foreignObject {
+    overflow: visible !important;
+}
+
 /* Jejak langkah dan Alur Council dibuat lebih rapat ke Mesin Council. */
 .aog-log {
     max-height: 580px;
@@ -928,7 +955,8 @@ ss.flow = flow
 with right:
     st.markdown(":material/hub: **Mesin proses**")
     ph_chips = st.empty()
-    ph_graph = st.empty()
+    with st.container(key="council-machine-graph"):
+        ph_graph = st.empty()
     # Panel bawah dirapatkan ke Mesin Council.
     with st.container(key="council-lower-panels"):
         log_col, flow_col = st.columns([1.55, 1], gap="small")
