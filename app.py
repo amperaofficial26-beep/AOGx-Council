@@ -52,27 +52,50 @@ html, body, [class*="css"] { font-family: "Inter", ui-sans-serif, system-ui, -ap
   border-radius:18px 18px 18px 5px !important;
 }
 .aog-user-marker, .aog-assistant-marker { display:none !important; }
-/* Mesin Council: panel lebih tinggi dan elemen diagram lebih mudah dibaca. */
+/* Kartu ringkasan mesin dibuat lebih kecil agar hemat ruang. */
+.aog-chips {
+    gap: 6px !important;
+}
+.aog-chip {
+    min-width: 64px !important;
+    padding: 3px 8px !important;
+    border-radius: 9px !important;
+}
+.aog-chip span {
+    font-size: 8px !important;
+    letter-spacing: .7px !important;
+}
+.aog-chip b {
+    font-size: 11.5px !important;
+    line-height: 1.2 !important;
+}
+.aog-legend {
+    gap: 10px !important;
+    margin-top: 5px !important;
+    font-size: 10px !important;
+}
+
+/* Mesin Council: ruang vertikal ditambah; teks dan garis dibuat lebih tegas. */
 .st-key-council-machine-graph {
     width: 100% !important;
-    min-height: 560px !important;
+    min-height: 680px !important;
 }
 .st-key-council-machine-graph [data-testid="stIFrame"],
 .st-key-council-machine-graph iframe {
     width: 100% !important;
-    height: 560px !important;
-    min-height: 560px !important;
+    height: 680px !important;
+    min-height: 680px !important;
     border: 0 !important;
 }
 .st-key-council-machine-graph svg {
     width: 100% !important;
-    height: 560px !important;
-    min-height: 560px !important;
+    height: 680px !important;
+    min-height: 680px !important;
     display: block !important;
     overflow: visible !important;
 }
 .st-key-council-machine-graph svg text {
-    font-size: 13px !important;
+    font-size: 15px !important;
     font-weight: 600 !important;
 }
 .st-key-council-machine-graph svg foreignObject {
