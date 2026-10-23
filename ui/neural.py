@@ -15,22 +15,22 @@ import json
 from ui.flow import DEBATERS, NODES
 from ui.machine import CUBE_EDGES, STATE_WORD, debate_state, edge_cls, node_state, norm
 
-HEIGHT = 450        # tinggi awal iframe mesin; JavaScript menyesuaikannya dengan lebar kolom
+HEIGHT = 760        # tinggi awal iframe mesin; kanvas vertikal menyesuaikan lebar kolom
 FLOW_HEIGHT = 622   # tinggi awal iframe Alur Council
 
-# Posisi kartu pada kanvas mesin (viewBox 1000 x 490). Kanvas sekarang memakai seluruh lebar,
+# Posisi kartu pada kanvas mesin (viewBox 1000 x 940). Kanvas memakai seluruh lebar,
 # karena panel Alur Council sudah dipindah keluar dari kanvas ini.
 POS = {
-    "orchestrator": (150, 120),
-    "researcher":   (500, 120),
-    "expert":       (850, 120),
-    "analyst":      (150, 270),
-    "skeptic":      (500, 270),
-    "synthesizer":  (850, 270),
-    "verifier":     (500, 420),
+    "orchestrator": (150, 230),
+    "researcher":   (500, 230),
+    "expert":       (850, 230),
+    "analyst":      (150, 470),
+    "skeptic":      (500, 470),
+    "synthesizer":  (850, 470),
+    "verifier":     (500, 710),
 }
-START_POS = (150, 420)
-ANSWER_POS = (850, 420)
+START_POS = (150, 710)
+ANSWER_POS = (850, 710)
 
 
 def _node(flow, name: str, x: int, y: int, label: str, sub: str) -> dict:
@@ -225,7 +225,7 @@ TEMPLATE = r"""<!DOCTYPE html>
 <script>
 __COMMON__
 const D = __DATA__;
-const VW = 1000, VH = 490, CW = 190, CH = 90;
+const VW = 1000, VH = 940, CW = 190, CH = 90;
 const THEME = {orchestrator:'#36cfff', verifier:'#36cfff', researcher:'#d45bff', skeptic:'#d45bff',
                analyst:'#ffad38', expert:'#ffad38', synthesizer:'#ff5ca8', start:'#ff9e43', answer:'#ff6ba9'};
 
@@ -240,10 +240,10 @@ window.addEventListener('resize', resize); resize();
 
 // ---- node (posisi bisa digeser; disimpan di localStorage bila tersedia) ----
 const nodes = {}; D.nodes.forEach(n => { n.w = CW; n.h = CH; n.phase = Math.random() * 6.28; nodes[n.id] = n; });
-try { const sv = JSON.parse(localStorage.getItem('aog_pos2') || '{}');
+try { const sv = JSON.parse(localStorage.getItem('aog_pos3') || '{}');
       for (const k in sv) if (nodes[k]) { nodes[k].x = sv[k][0]; nodes[k].y = sv[k][1]; } } catch (e) {}
 function savePos() { try { const o = {}; for (const k in nodes) o[k] = [Math.round(nodes[k].x), Math.round(nodes[k].y)];
-                           localStorage.setItem('aog_pos2', JSON.stringify(o)); } catch (e) {} }
+                           localStorage.setItem('aog_pos3', JSON.stringify(o)); } catch (e) {} }
 
 // ---- jalur kabel antar kartu (dihitung ulang tiap frame agar ikut saat digeser) ----
 function cablePath(a, b, back) {
@@ -259,7 +259,7 @@ function cablePath(a, b, back) {
 }
 
 // ---- latar ----
-const stars = Array.from({length: 24}, (_, i) => ({x: 30 + (i * 173) % 940, y: 70 + (i * 97) % 400, r: 1 + (i % 3) * .5, p: i * .7}));
+const stars = Array.from({length: 24}, (_, i) => ({x: 30 + (i * 173) % 940, y: 100 + (i * 197) % 800, r: 1 + (i % 3) * .5, p: i * .7}));
 function background(t) {
   ctx.save(); ctx.fillStyle = 'rgba(56,189,248,.17)';
   for (let x = 20; x < VW; x += 32) for (let y = 20; y < VH; y += 32) ctx.fillRect(x, y, 1.2, 1.2);
