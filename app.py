@@ -338,23 +338,41 @@ def github_pr_panel():
     client_secret = config.get_secret("GITHUB_CLIENT_SECRET")
     redirect_uri = config.get_secret("GITHUB_REDIRECT_URI")
 
-    # GitHub OAuth callback; this function is deliberately independent of chat state.
+    # GitHub OAuth callback: read duplicate query values safely and keep state verification enabled.
     params = st.query_params
-    oauth_error = params.get("error")
-    code = params.get("code")
-    returned_state = params.get("state")
+    try:
+        code_values = params.get_all("code")
+        state_values = params.get_all("state")
+        error_values = params.get_all("error")
+        code = code_values[-1] if code_values else params.get("code")
+        returned_state = state_values[-1] if state_values else params.get("state")
+        oauth_error = error_values[-1] if error_values else params.get("error")
+    except (AttributeError, TypeError):
+        code = params.get("code")
+        returned_state = params.get("state")
+        oauth_error = params.get("error")
+
+    is_oauth_callback = bool(oauth_error or code or returned_state)
     if oauth_error:
-        st.error("Login GitHub dibatalkan atau ditolak. Silakan coba lagi.")
+        st.error("Login GitHub tidak diselesaikan oleh GitHub. Klik Hubungkan GitHub untuk mencoba lagi.")
         st.query_params.clear()
-    elif code or returned_state:
-        if not (code and returned_state and client_secret
-                and verify_oauth_state(str(returned_state), client_secret)):
-            st.error("Callback OAuth tidak valid atau kedaluwarsa. Hubungkan GitHub kembali.")
+    elif is_oauth_callback:
+        if not code:
+            st.error("Callback GitHub tidak menyertakan kode login. Muat ulang halaman, lalu hubungkan GitHub kembali.")
+            st.query_params.clear()
+        elif not returned_state:
+            st.error("Callback GitHub tidak menyertakan state keamanan. Muat ulang halaman, lalu hubungkan GitHub kembali.")
+            st.query_params.clear()
+        elif not (client_id and client_secret and redirect_uri):
+            st.error("Konfigurasi GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET, atau GITHUB_REDIRECT_URI belum lengkap di Streamlit Secrets.")
+            st.query_params.clear()
+        elif not verify_oauth_state(str(returned_state), client_secret, max_age=1800):
+            st.error("State OAuth tidak cocok atau tautan koneksi sudah lebih dari 30 menit. Muat ulang halaman, lalu klik Hubungkan GitHub lagi.")
             st.query_params.clear()
         else:
             try:
                 token = exchange_oauth_code(
-                    client_id, client_secret, str(code), redirect_uri or None
+                    client_id, client_secret, str(code), redirect_uri
                 )
                 user = GitHubClient(token).get_authenticated_user()
                 ss.gh_oauth_token = token
