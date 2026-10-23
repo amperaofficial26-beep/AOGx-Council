@@ -7,7 +7,7 @@ Di kolom kanan: Mesin Council selebar penuh, lalu di bawahnya "Jejak langkah" da
 import difflib
 import hmac
 import re
-import time
+import secrets
 from urllib.parse import urlencode
 
 import streamlit as st
@@ -660,7 +660,7 @@ def github_pr_panel():
             if st.button("Buat branch, commit & Pull Request", icon=":material/merge:",
                           use_container_width=True, disabled=not approved, key="gh_create_pr"):
                 slug = re.sub(r"[^a-z0-9]+", "-", ss.gh_pr_title.lower()).strip("-")[:32] or "update"
-                branch = f"aogx-ai/{slug}-{int(time.time())}"
+                branch = f"aogx/{secrets.token_hex(4)}-{slug}"
                 modes = {item["path"]: item.get("mode", "100644") for item in snapshot["files"]}
                 try:
                     with st.spinner("Membuat branch dan Pull Request di GitHub…"):
