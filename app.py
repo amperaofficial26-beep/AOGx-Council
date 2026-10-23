@@ -981,6 +981,9 @@ with left:
         else:
             question = str(submitted).strip()
 
+    # Status proses di luar kontainer riwayat chat yang memiliki scroll sendiri.
+    live_status = st.empty()
+
 
 # Muat pesan analisis otomatis setelah pengguna memilih repo + branch dan menekan tombol.
 auto_analysis_request = ss.get("gh_auto_analysis_pending")
@@ -1027,9 +1030,11 @@ if question:
             with st.chat_message("assistant"):
                 render_answer(msg, len(ss.messages) - 1)
     elif len(question) > config.MAX_QUESTION_CHARS:
+        live_status.empty()
         with chat_box:
             st.error(f"Pertanyaan terlalu panjang (maks {config.MAX_QUESTION_CHARS} karakter).")
     elif ss.n_requests >= config.MAX_REQUESTS_PER_SESSION:
+        live_status.empty()
         with chat_box:
             st.error("Batas permintaan sesi ini tercapai. Klik \"Chat baru\" atau muat ulang halaman.")
     elif github_connected and is_repo_implementation_request(question) and not auto_analysis:
@@ -1043,6 +1048,10 @@ if question:
 
         answer = ""
         provider = None
+        live_status.markdown(
+            thinking.render("AOGx sedang menyiapkan perubahan pada repo…"),
+            unsafe_allow_html=True,
+        )
         snapshot = ss.get("gh_snapshot") or {}
         target = ss.get("gh_repo_context_target") or {}
         repo_pick = ss.get("gh_repo_pick")
@@ -1073,10 +1082,12 @@ if question:
                      "providers": [provider] if provider else [], "log": [], "flow": None},
         }
         ss.messages.append(assistant_msg)
+        live_status.empty()
         with chat_box:
             with st.chat_message("assistant"):
                 render_answer(assistant_msg, len(ss.messages) - 1)
     elif not usable or (auto_analysis and demo):
+        live_status.empty()
         if auto_analysis:
             ss.pop("gh_auto_analysis_pending", None)
         with chat_box:
@@ -1122,14 +1133,15 @@ if question:
             from ui.demo import DemoRouter
             run_router = DemoRouter()
 
-        # Urutan: bubble user -> kartu thinking -> bubble AI (dibuat setelah proses selesai).
+        # Urutan: bubble user -> indikator proses di luar area scroll -> bubble AI.
         with chat_box:
             with st.chat_message("user"):
                 render_user_message({"role": "user", "content": question})
-            ph_live = st.empty()
 
-        ph_live.markdown(thinking.render(flow.stage_text or "Council mulai bekerja") + CHAT_TAIL,
-                         unsafe_allow_html=True)
+        live_status.markdown(
+            thinking.render(flow.stage_text or "Council mulai bekerja"),
+            unsafe_allow_html=True,
+        )
 
         log, final, error = [], None, None
         for ev in pipeline.run(run_router, question, mode, history):
@@ -1137,17 +1149,22 @@ if question:
             if ev["kind"] == "agent":
                 log.append({"role": ev["role"], "provider": ev["provider"],
                             "stage": ev["stage"], "text": ev["text"]})
-                ph_live.markdown(thinking.render(ev["stage"], ev["role"]) + CHAT_TAIL,
-                                 unsafe_allow_html=True)
+                live_status.markdown(
+                    thinking.render(ev["stage"], ev["role"]),
+                    unsafe_allow_html=True,
+                )
             elif ev["kind"] == "status":
-                ph_live.markdown(thinking.render(ev["text"]) + CHAT_TAIL, unsafe_allow_html=True)
+                live_status.markdown(
+                    thinking.render(ev["text"]),
+                    unsafe_allow_html=True,
+                )
             elif ev["kind"] == "final":
                 final = ev
             elif ev["kind"] == "error":
                 error = ev["text"]
             draw(redraw_log=(action in ("log", "error", "final")))
 
-        ph_live.empty()
+        live_status.empty()
         with chat_box:
             with st.chat_message("assistant"):
                 if final:
