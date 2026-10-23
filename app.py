@@ -62,6 +62,29 @@ html, body, [class*="css"] { font-family: "Inter", ui-sans-serif, system-ui, -ap
     position: relative;
     z-index: 2;
 }
+/* Compact Arena-style GitHub repo / branch selector below the chat composer. */
+.st-key-github-repo-toolbar {
+    padding: 0.32rem 0.45rem !important;
+    border-radius: 16px !important;
+    border-color: rgba(130, 145, 168, 0.24) !important;
+    background: rgba(13, 21, 35, 0.72) !important;
+}
+.st-key-github-repo-toolbar [data-testid="stSelectbox"] {
+    margin-bottom: 0 !important;
+}
+.st-key-github-repo-toolbar [data-baseweb="select"] > div {
+    min-height: 38px !important;
+    border-radius: 10px !important;
+}
+.st-key-github-repo-toolbar [data-testid="stButton"] button,
+.st-key-github-repo-toolbar [data-testid="stLinkButton"] a {
+    min-height: 38px !important;
+    border-radius: 10px !important;
+}
+.st-key-github-repo-toolbar [data-testid="stHorizontalBlock"] {
+    align-items: center !important;
+    gap: 0.35rem !important;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -310,171 +333,251 @@ def reset_chat():
 
 
 def github_pr_panel():
-    """Hubungkan akun GitHub, pilih repositori milik pengguna, lalu siapkan PR yang ditinjau."""
-    with st.container():
-        client_id = config.get_secret("GITHUB_CLIENT_ID")
-        client_secret = config.get_secret("GITHUB_CLIENT_SECRET")
-        redirect_uri = config.get_secret("GITHUB_REDIRECT_URI")
+    """Compact Arena-style repository/branch toolbar below the chat composer."""
+    client_id = config.get_secret("GITHUB_CLIENT_ID")
+    client_secret = config.get_secret("GITHUB_CLIENT_SECRET")
+    redirect_uri = config.get_secret("GITHUB_REDIRECT_URI")
 
-        # Tangani callback OAuth di halaman aplikasi yang sama.
-        params = st.query_params
-        oauth_error = params.get("error")
-        code = params.get("code")
-        returned_state = params.get("state")
-        if oauth_error:
-            st.error("Login GitHub dibatalkan atau ditolak. Silakan coba hubungkan kembali.")
+    # GitHub OAuth callback; this function is deliberately independent of chat state.
+    params = st.query_params
+    oauth_error = params.get("error")
+    code = params.get("code")
+    returned_state = params.get("state")
+    if oauth_error:
+        st.error("Login GitHub dibatalkan atau ditolak. Silakan coba lagi.")
+        st.query_params.clear()
+    elif code or returned_state:
+        if not (code and returned_state and client_secret
+                and verify_oauth_state(str(returned_state), client_secret)):
+            st.error("Callback OAuth tidak valid atau kedaluwarsa. Hubungkan GitHub kembali.")
             st.query_params.clear()
-        elif code or returned_state:
-            if not (code and returned_state and client_secret and
-                    verify_oauth_state(str(returned_state), client_secret)):
-                st.error("Callback OAuth tidak valid atau kedaluwarsa. Hubungkan GitHub kembali.")
-                st.query_params.clear()
-            else:
-                try:
-                    token = exchange_oauth_code(
-                        client_id, client_secret, str(code), redirect_uri or None
-                    )
-                    user = GitHubClient(token).get_authenticated_user()
-                    ss.gh_oauth_token = token
-                    ss.gh_oauth_user = user
-                    ss.pop("gh_repositories", None)
-                    ss.pop("gh_snapshot", None)
-                    ss.pop("gh_changes", None)
-                    ss.pop("gh_result", None)
-                    st.query_params.clear()
-                    st.rerun()
-                except GitHubError as exc:
-                    st.error(str(exc))
-                    st.query_params.clear()
-
-        if not client_id or not client_secret or not redirect_uri:
-            st.info(
-                "Untuk mengaktifkan login GitHub, tambahkan `GITHUB_CLIENT_ID`, "
-                "`GITHUB_CLIENT_SECRET`, dan `GITHUB_REDIRECT_URI` ke Streamlit Secrets. "
-                "Redirect URI harus sama persis dengan yang terdaftar di GitHub OAuth App."
-            )
-            return
-
-        token = ss.get("gh_oauth_token", "")
-        user = ss.get("gh_oauth_user")
-        if not token or not user:
+        else:
             try:
-                state = make_oauth_state(client_secret)
-                query = urlencode({
-                    "client_id": client_id,
-                    "redirect_uri": redirect_uri,
-                    "scope": "repo",
-                    "state": state,
-                })
-                auth_url = f"https://github.com/login/oauth/authorize?{query}"
-                st.markdown("### Hubungkan repositori GitHub")
-                st.caption("Login dengan akun GitHub milikmu. AOGx Council akan menampilkan repositori yang dapat diakses akun tersebut.")
-                st.link_button("Hubungkan akun GitHub", auth_url,
-                               icon=":material/link:", use_container_width=True)
+                token = exchange_oauth_code(
+                    client_id, client_secret, str(code), redirect_uri or None
+                )
+                user = GitHubClient(token).get_authenticated_user()
+                ss.gh_oauth_token = token
+                ss.gh_oauth_user = user
+                for key in (
+                    "gh_repositories", "gh_snapshot", "gh_changes", "gh_result",
+                    "gh_selected", "gh_branches", "gh_branch_repo", "gh_repo_context",
+                    "gh_repo_context_target", "gh_repo_summary", "gh_repo_summary_target",
+                    "gh_auto_analysis_pending",
+                ):
+                    ss.pop(key, None)
+                st.query_params.clear()
+                st.rerun()
             except GitHubError as exc:
                 st.error(str(exc))
+                st.query_params.clear()
+
+    token = ss.get("gh_oauth_token", "")
+    user = ss.get("gh_oauth_user")
+
+    # Compact disconnected state: one low-height bar, always at the bottom of the chat column.
+    if not (client_id and client_secret and redirect_uri):
+        with st.container(border=True, key="github-repo-toolbar"):
+            left_col, right_col = st.columns([2.6, 1.4], vertical_alignment="center")
+            with left_col:
+                st.markdown("**GitHub** · belum dikonfigurasi")
+                st.caption("Isi GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET, dan GITHUB_REDIRECT_URI di Streamlit Secrets.")
+            with right_col:
+                st.button("Hubungkan", icon=":material/link:", disabled=True,
+                          use_container_width=True, key="gh_connect_disabled")
+        return
+
+    if not token or not user:
+        state = make_oauth_state(client_secret)
+        query = urlencode({
+            "client_id": client_id,
+            "redirect_uri": redirect_uri,
+            "scope": "repo",
+            "state": state,
+        })
+        auth_url = f"https://github.com/login/oauth/authorize?{query}"
+        with st.container(border=True, key="github-repo-toolbar"):
+            connect_left, connect_right = st.columns([2.2, 1.0], vertical_alignment="center")
+            with connect_left:
+                st.markdown("**GitHub** · akun belum terhubung")
+                st.caption("Hubungkan untuk memilih repositori dan branch di sini.")
+            with connect_right:
+                st.link_button("Hubungkan GitHub", auth_url, icon=":material/link:",
+                               use_container_width=True)
+        return
+
+    client = GitHubClient(token)
+    try:
+        if "gh_repositories" not in ss:
+            with st.spinner("Memuat repositori GitHub…"):
+                ss.gh_repositories = client.list_user_repositories()
+        repositories = [r for r in ss.gh_repositories if not r.get("disabled")]
+        if not repositories:
+            with st.container(border=True, key="github-repo-toolbar"):
+                st.caption(f"GitHub · @{user.get('login', 'terhubung')} · tidak ada repositori yang dapat diakses")
             return
 
-        st.markdown(f"### GitHub · `{user.get('login', 'akun terhubung')}`")
-        if st.button("Putuskan akun GitHub", key="gh_disconnect", icon=":material/link_off:"):
-            for key in ("gh_oauth_token", "gh_oauth_user", "gh_repositories", "gh_snapshot",
-                        "gh_changes", "gh_result", "gh_selected", "gh_branches", "gh_branch_repo",
-                        "gh_repo_context", "gh_repo_context_target", "gh_repo_summary",
-                        "gh_repo_summary_target", "gh_auto_analysis_pending"):
+        repo_names = [r["full_name"] for r in repositories]
+        selected_repo = st.session_state.get("gh_repo_pick")
+        if selected_repo not in repo_names:
+            # Start at the most recently returned repository; the user can change it in the same control.
+            selected_repo = repo_names[0]
+        repo_info = next(r for r in repositories if r["full_name"] == selected_repo)
+
+        # Refresh branch options when repository changes. Clear stale widget value if necessary.
+        if ss.get("gh_branch_repo") != selected_repo or "gh_branches" not in ss:
+            branches_now = client.list_branches(selected_repo)
+            ss.gh_branches = branches_now or [repo_info.get("default_branch") or "main"]
+            ss.gh_branch_repo = selected_repo
+            if ss.get("gh_base_pick") not in ss.gh_branches:
+                ss.pop("gh_base_pick", None)
+        branches = ss.get("gh_branches") or [repo_info.get("default_branch") or "main"]
+        default_branch = repo_info.get("default_branch") or branches[0]
+        default_index = branches.index(default_branch) if default_branch in branches else 0
+        selected_branch = ss.get("gh_base_pick")
+        if selected_branch not in branches:
+            selected_branch = branches[default_index]
+
+        # Arena-inspired: repo and branch selectors share one horizontal, understated toolbar.
+        load_repo = False
+        disconnect = False
+        with st.container(border=True, key="github-repo-toolbar"):
+            repo_col, branch_col, analyze_col, settings_col = st.columns(
+                [1.9, 1.25, 0.62, 0.30], gap="small", vertical_alignment="center"
+            )
+            with repo_col:
+                selected_repo = st.selectbox(
+                    "Repositori", repo_names, index=repo_names.index(selected_repo),
+                    key="gh_repo_pick", label_visibility="collapsed",
+                    format_func=lambda name: f"▣  {name}",
+                    help="Pilih repositori GitHub",
+                )
+            # If the repo selection changed, refresh branch options before creating the branch widget.
+            if ss.get("gh_branch_repo") != selected_repo:
+                new_repo = next(r for r in repositories if r["full_name"] == selected_repo)
+                new_branches = client.list_branches(selected_repo)
+                ss.gh_branches = new_branches or [new_repo.get("default_branch") or "main"]
+                ss.gh_branch_repo = selected_repo
+                if ss.get("gh_base_pick") not in ss.gh_branches:
+                    ss.pop("gh_base_pick", None)
+            branches = ss.get("gh_branches") or ["main"]
+            branch_default = next(r for r in repositories if r["full_name"] == selected_repo).get("default_branch") or branches[0]
+            branch_index = branches.index(branch_default) if branch_default in branches else 0
+            current_branch = ss.get("gh_base_pick")
+            if current_branch not in branches:
+                current_branch = branches[branch_index]
+            with branch_col:
+                base = st.selectbox(
+                    "Branch", branches, index=branches.index(current_branch),
+                    key="gh_base_pick", label_visibility="collapsed",
+                    format_func=lambda name: f"⑂  {name}",
+                    help="Pilih branch dasar untuk dianalisis atau dikembangkan",
+                )
+            with analyze_col:
+                load_repo = st.button(
+                    "Analisis", icon=":material/auto_awesome:", key="gh_load_repo",
+                    help="Baca repo dan branch yang dipilih tanpa mengubah file",
+                    use_container_width=True,
+                )
+            with settings_col:
+                with st.popover(" ", icon=":material/settings:", help="Pengaturan GitHub"):
+                    st.caption(f"Terhubung sebagai **@{user.get('login', 'GitHub user')}**")
+                    if repo_info.get("permissions", {}).get("push"):
+                        st.caption("Izin repo: baca dan push")
+                    else:
+                        st.caption("Izin repo: baca saja (push mungkin ditolak)")
+                    st.link_button("Buka repo di GitHub", repo_info.get("html_url") or f"https://github.com/{selected_repo}",
+                                   icon=":material/open_in_new:", use_container_width=True)
+                    st.divider()
+                    disconnect = st.button(
+                        "Putuskan akun", icon=":material/link_off:", key="gh_disconnect",
+                        use_container_width=True,
+                    )
+
+        if disconnect:
+            for key in (
+                "gh_oauth_token", "gh_oauth_user", "gh_repositories", "gh_snapshot",
+                "gh_changes", "gh_result", "gh_selected", "gh_branches", "gh_branch_repo",
+                "gh_repo_context", "gh_repo_context_target", "gh_repo_summary",
+                "gh_repo_summary_target", "gh_auto_analysis_pending",
+            ):
                 ss.pop(key, None)
             st.rerun()
 
-        client = GitHubClient(token)
-        try:
-            if "gh_repositories" not in ss:
-                with st.spinner("Memuat repositori GitHub..."):
-                    ss.gh_repositories = client.list_user_repositories()
-            repositories = [r for r in ss.gh_repositories if not r.get("disabled")]
-            if not repositories:
-                st.warning("Tidak ada repositori yang dapat diakses akun ini.")
-                return
-            repo_names = [r["full_name"] for r in repositories]
-            selected_repo = st.selectbox(
-                "Pilih repositori", repo_names, key="gh_repo_pick",
-                format_func=lambda name: next(
-                    (f"{name} · privat" if item.get("private") else f"{name} · publik")
-                    for item in repositories if item["full_name"] == name
-                ),
-            )
-            repo_info = next(r for r in repositories if r["full_name"] == selected_repo)
-            if not repo_info.get("permissions", {}).get("push"):
-                st.caption("Akun ini tidak memiliki izin push pada repositori tersebut. Kamu masih dapat membaca file, tetapi pembuatan PR mungkin ditolak.")
-            if "gh_branch_repo" not in ss or ss.gh_branch_repo != selected_repo or "gh_branches" not in ss:
-                ss.gh_branches = client.list_branches(selected_repo)
-                ss.gh_branch_repo = selected_repo
-            branches = ss.get("gh_branches") or [repo_info.get("default_branch") or "main"]
-            default_branch = repo_info.get("default_branch") or branches[0]
-            branch_index = branches.index(default_branch) if default_branch in branches else 0
-            base = st.selectbox("Branch dasar", branches, index=branch_index, key="gh_base_pick")
-            previous_target = ss.get("gh_repo_context_target") or {}
-            if (previous_target and (previous_target.get("repo") != selected_repo
-                                     or previous_target.get("branch") != base)):
-                for key in ("gh_snapshot", "gh_repo_context", "gh_repo_context_target",
-                            "gh_repo_summary", "gh_repo_summary_target", "gh_auto_analysis_pending",
-                            "gh_changes", "gh_result", "gh_selected"):
-                    ss.pop(key, None)
-            load_repo = st.button("Analisis repo & branch otomatis", icon=":material/auto_awesome:",
-                                  use_container_width=True, key="gh_load_repo",
-                                  help="Membaca repo secara read-only lalu mengirim pesan analisis otomatis ke chat.")
-        except GitHubError as exc:
-            st.error(str(exc))
-            if "401" in str(exc) or "Hubungkan akun lagi" in str(exc):
-                ss.pop("gh_oauth_token", None)
-                ss.pop("gh_oauth_user", None)
-            return
-
-        if load_repo:
-            try:
-                files = client.list_files(selected_repo, base)
-                allowed = REPO_TEXT_EXTENSIONS
-                usable_files = [item for item in files
-                                if item.get("path", "").lower().endswith(allowed)
-                                and not item["path"].split("/")[-1].startswith(".")
-                                and "lock" not in item["path"].lower()
-                                and not is_sensitive_repo_path(item["path"])
-                                and not any(part.lower() in {".git", ".github", "node_modules", "venv", ".venv"}
-                                            for part in item["path"].split("/"))]
-                if not usable_files:
-                    st.error("Tidak ditemukan file teks yang didukung pada branch tersebut.")
-                else:
-                    with st.spinner("Membaca README, struktur, dependensi, dan file utama (read-only)…"):
-                        repo_context = build_repo_context(client, selected_repo, base, usable_files)
-                    ss.gh_snapshot = {"repo": selected_repo, "base": base,
-                                      "files": usable_files[:300]}
-                    ss.gh_repo_context = repo_context
-                    ss.gh_repo_context_target = {"repo": selected_repo, "branch": base}
-                    ss.pop("gh_repo_summary", None)
-                    ss.pop("gh_repo_summary_target", None)
-                    ss.gh_auto_analysis_pending = {
-                        "repo": selected_repo,
-                        "branch": base,
-                        "prompt": repo_analysis_prompt(selected_repo, base),
-                    }
-                    ss.gh_selected = []
-                    ss.pop("gh_changes", None)
-                    ss.pop("gh_result", None)
-                    st.rerun()
-            except (GitHubError, KeyError, ValueError) as exc:
-                st.error(str(exc))
+        # A compact status line replaces the former large account heading and stacked selectors.
+        previous_target = ss.get("gh_repo_context_target") or {}
+        if previous_target and (previous_target.get("repo") != selected_repo
+                                or previous_target.get("branch") != base):
+            for key in (
+                "gh_snapshot", "gh_repo_context", "gh_repo_context_target",
+                "gh_repo_summary", "gh_repo_summary_target", "gh_auto_analysis_pending",
+                "gh_changes", "gh_result", "gh_selected",
+            ):
+                ss.pop(key, None)
 
         snapshot = ss.get("gh_snapshot")
-        if not snapshot or snapshot["repo"] != selected_repo or snapshot["base"] != base:
-            return
-
-        st.caption(f"{snapshot['repo']} · branch `{snapshot['base']}` · "
-                   f"{len(snapshot['files'])} file teks tersedia")
+        snapshot_matches = bool(snapshot and snapshot.get("repo") == selected_repo
+                                and snapshot.get("base") == base)
         context_target = ss.get("gh_repo_context_target") or {}
         summary_target = ss.get("gh_repo_summary_target") or {}
-        if context_target.get("repo") == snapshot["repo"] and context_target.get("branch") == snapshot["base"]:
-            if summary_target.get("repo") == snapshot["repo"] and summary_target.get("branch") == snapshot["base"]:
-                st.success("Repo sudah dianalisis. Konteks ringkas akan digunakan untuk pertanyaan lanjutan di sesi ini.")
+        summary_matches = bool(summary_target.get("repo") == selected_repo
+                               and summary_target.get("branch") == base
+                               and ss.get("gh_repo_summary"))
+        if summary_matches:
+            status_text = "✓ Analisis selesai"
+        elif snapshot_matches and context_target.get("repo") == selected_repo:
+            status_text = f"{len(snapshot.get('files', []))} file · konteks dimuat"
+        else:
+            status_text = "Pilih repo dan branch, lalu tekan Analisis"
+        st.caption(f"GitHub · @{user.get('login', 'terhubung')} · {status_text}")
+
+    except GitHubError as exc:
+        st.error(str(exc))
+        if "401" in str(exc) or "Hubungkan akun lagi" in str(exc):
+            ss.pop("gh_oauth_token", None)
+            ss.pop("gh_oauth_user", None)
+        return
+
+    # Read-only analysis: this button is the only action that loads repository source context.
+    if load_repo:
+        try:
+            files = client.list_files(selected_repo, base)
+            usable_files = [item for item in files
+                            if item.get("path", "").lower().endswith(REPO_TEXT_EXTENSIONS)
+                            and not item["path"].split("/")[-1].startswith(".")
+                            and "lock" not in item["path"].lower()
+                            and not is_sensitive_repo_path(item["path"])
+                            and not any(part.lower() in {".git", ".github", "node_modules", "venv", ".venv"}
+                                        for part in item["path"].split("/"))]
+            if not usable_files:
+                st.error("Tidak ditemukan file teks yang didukung pada branch tersebut.")
             else:
-                st.info("Konteks repo dimuat. Pesan analisis otomatis sedang diproses di chat.")
+                with st.spinner("Membaca README, struktur, dependensi, dan file utama (read-only)…"):
+                    repo_context = build_repo_context(client, selected_repo, base, usable_files)
+                ss.gh_snapshot = {"repo": selected_repo, "base": base, "files": usable_files[:300]}
+                ss.gh_repo_context = repo_context
+                ss.gh_repo_context_target = {"repo": selected_repo, "branch": base}
+                ss.pop("gh_repo_summary", None)
+                ss.pop("gh_repo_summary_target", None)
+                ss.gh_auto_analysis_pending = {
+                    "repo": selected_repo,
+                    "branch": base,
+                    "prompt": repo_analysis_prompt(selected_repo, base),
+                }
+                ss.gh_selected = []
+                ss.pop("gh_changes", None)
+                ss.pop("gh_result", None)
+                st.rerun()
+        except (GitHubError, KeyError, ValueError) as exc:
+            st.error(str(exc))
+
+    snapshot = ss.get("gh_snapshot")
+    if not snapshot or snapshot.get("repo") != selected_repo or snapshot.get("base") != base:
+        return
+
+    # Keep code-change controls tucked away so the repo selector remains minimal like Arena.
+    with st.expander(f"Pengembangan repo · {len(snapshot['files'])} file tersedia", expanded=False):
+        st.caption("Analisis bersifat baca-saja. Untuk perubahan, pilih file yang boleh disentuh dan tinjau diff sebelum membuka Pull Request.")
         paths = [item["path"] for item in snapshot["files"]]
         selected = st.multiselect("File yang boleh diubah AI (maks. 4)", paths,
                                   key="gh_selected", max_selections=4)
@@ -532,10 +635,12 @@ def github_pr_panel():
                         raise ValueError("AI tidak mengusulkan perubahan file.")
                     if len(changes) > 4:
                         raise ValueError("AI mengubah lebih dari 4 file; batasi perubahan.")
-                    ss.gh_changes = {"files": changes, "source": source,
-                                     "title": str(data.get("title") or "Perubahan dari AOGx AI")[:250],
-                                     "body": str(data.get("body") or "Perubahan dibuat dengan bantuan AOGx Council."),
-                                     "provider": provider}
+                    ss.gh_changes = {
+                        "files": changes, "source": source,
+                        "title": str(data.get("title") or "Perubahan dari AOGx AI")[:250],
+                        "body": str(data.get("body") or "Perubahan dibuat dengan bantuan AOGx Council."),
+                        "provider": provider,
+                    }
                     ss.pop("gh_result", None)
                 except Exception as exc:
                     st.error(f"Gagal menyiapkan perubahan: {clip(str(exc), 240)}")
@@ -553,7 +658,7 @@ def github_pr_panel():
             approved = st.checkbox("Saya sudah meninjau diff dan menyetujui perubahan ini.",
                                    key="gh_approved")
             if st.button("Buat branch, commit & Pull Request", icon=":material/merge:",
-                         use_container_width=True, disabled=not approved, key="gh_create_pr"):
+                          use_container_width=True, disabled=not approved, key="gh_create_pr"):
                 slug = re.sub(r"[^a-z0-9]+", "-", ss.gh_pr_title.lower()).strip("-")[:32] or "update"
                 branch = f"aogx-ai/{slug}-{int(time.time())}"
                 modes = {item["path"]: item.get("mode", "100644") for item in snapshot["files"]}
