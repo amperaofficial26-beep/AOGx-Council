@@ -24,7 +24,7 @@ from core.utils import clip, extract_json
 from providers.github import (
     GitHubClient, GitHubError, make_oauth_state, verify_oauth_state, exchange_oauth_code,
 )
-from ui import autonomous_creator, machine, neural, theme, thinking, video_studio
+from ui import machine, neural, theme, thinking
 from ui.flow import CouncilFlow
 
 st.set_page_config(page_title="AOGx Council", page_icon=":material/hub:", layout="wide",
@@ -560,7 +560,3 @@ with chat_box:
 # Panel GitHub dan Video Studio diletakkan di bawah kolom chat.
 with left:
     github_pr_panel()
-    with st.expander("Video Studio · Dola → YouTube Shorts", expanded=False):
-        video_studio.render()
-    with st.expander("Autonomous Creator · Jadwal Video Harian", expanded=False):
-        autonomous_creator.render()
