@@ -5,9 +5,11 @@ Diskusi multi-agen AI: Orchestrator merencanakan, Researcher (Tavily) mencari su
 mengulang revisi bila skor di bawah ambang.
 
 ## Tampilan
-Tanpa sidebar. Layar dibagi **1/4 kiri** untuk chat (permanen, tanpa buka-tutup) dan **3/4 kanan**
-untuk "mesin" proses. Di kolom chat ada tombol pop up pemilih kedalaman (Cepat / Seimbang /
-Mendalam) dan tombol "Chat baru", keduanya memakai ikon Material.
+Tanpa sidebar. Halaman **AOGx Council** menyediakan chat minimal dengan mode **Normal** (satu putaran
+dan verifikasi) dan **Flash** (satu panggilan langsung tanpa putaran/verifikasi). Groq GPT-OSS 120B
+diprioritaskan untuk perencanaan, riset, sintesis, dan jawaban Flash. Halaman **AOGx Agent Code**
+mempertahankan mode **Seimbang** (dua putaran) dan **Mendalam** (tiga putaran) bersama workspace
+proses dan GitHub.
 
 Mesin kanan terdiri dari kubus isometrik untuk 7 agen yang tersambung lewat jaringan hub "State",
 plus panel **Alur Council** (START, State, Orchestrator, Researcher / Debat 3 agen, Penyusun,
