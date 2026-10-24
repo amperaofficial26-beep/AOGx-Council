@@ -118,6 +118,12 @@ html, body, [class*="css"] { font-family: "Inter", ui-sans-serif, system-ui, -ap
 .st-key-council-lower-panels .aog-log {
     max-height: 680px;
 }
+/* Let the conversation fill the viewport so the composer lines up near the page bottom. */
+.st-key-chat-history,
+.st-key-chat-history [data-testid="stVerticalBlockBorderWrapper"] {
+    height: clamp(320px, calc(100vh - 330px), 900px) !important;
+    max-height: clamp(320px, calc(100vh - 330px), 900px) !important;
+}
 /* Chat input and repository controls form one Arena-style composer panel. */
 .st-key-chat-composer-shell {
     width: 100% !important;
@@ -1051,14 +1057,13 @@ def draw(redraw_log: bool = True):
 draw()
 
 # ---------- Kiri: chat ----------
-# Ruang kosong di dasar kotak chat: CSS fade bawah (.st-key-chat-history) memudarkan ~42px terakhir,
-# jadi tanpa ruang ini kartu thinking dan bubble terakhir terlihat terpotong setengah.
+# Riwayat chat mengisi ruang vertikal yang tersisa; CSS menyesuaikan tinggi berdasarkan viewport.
 CHAT_TAIL = '<div style="height:64px"></div>'
 
 with left:
     # Reserve the conversation above a single, inline composer shell. Nesting chat_input
     # makes Streamlit render it inline so the GitHub repo/branch toolbar can share its card.
-    chat_box = st.container(height=440, border=False, key="chat-history")
+    chat_box = st.container(height=700, border=False, key="chat-history")
     with st.container(key="chat-composer-shell"):
         try:
             submitted = st.chat_input(
