@@ -7,6 +7,7 @@ import difflib
 import hmac
 import re
 import secrets
+from pathlib import Path
 from urllib.parse import urlencode
 
 import streamlit as st
@@ -20,6 +21,8 @@ from providers.github import (
 )
 from ui import machine, neural, theme, thinking
 from ui.flow import CouncilFlow
+
+CHAT_ASSISTANT_AVATAR = str(Path(__file__).resolve().parent / "ui" / "assets" / "aogx-mark.png")
 
 st.set_page_config(page_title="AOGx Council", page_icon=":material/hub:", layout="wide",
                    initial_sidebar_state="collapsed")
@@ -37,13 +40,24 @@ html, body, [class*="css"] { font-family: "Inter", ui-sans-serif, system-ui, -ap
 .aog-title { font-size: 1.5rem; font-weight: 800; letter-spacing: .5px; line-height: 1.15;
   background: linear-gradient(90deg, #e5e7eb, #94a3b8 60%, #cbd5e1);
   -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-[data-testid="stChatMessage"] { background:#0d1523; border:1px solid #1a2740;
-  border-radius:18px; padding:.6rem .7rem; margin-bottom:.6rem; }
+[data-testid="stChatMessage"] {
+  position:relative; background:linear-gradient(145deg,#111c2d,#0a1321);
+  border:1px solid rgba(116,143,184,.24); border-radius:20px;
+  padding:.72rem .82rem; margin-bottom:.72rem;
+  box-shadow:0 8px 24px rgba(0,0,0,.18);
+  transition:border-color .2s ease, box-shadow .2s ease;
+}
+[data-testid="stChatMessage"]:hover {
+  border-color:rgba(112,145,196,.42);
+  box-shadow:0 10px 28px rgba(0,0,0,.24);
+}
 [data-testid="stChatMessage"]:has(.aog-user-marker) {
   width:fit-content !important; max-width:86% !important; align-self:flex-end !important;
   margin-left:auto !important; margin-right:0 !important; flex-direction:row-reverse;
-  background:#12483d !important; border-color:#216d59 !important;
-  border-radius:18px 18px 5px 18px !important;
+  background:linear-gradient(135deg,rgba(15,91,79,.97),rgba(12,58,81,.97)) !important;
+  border-color:rgba(49,211,184,.4) !important;
+  border-radius:20px 20px 6px 20px !important;
+  box-shadow:0 9px 26px rgba(13,148,136,.12), inset 0 1px rgba(255,255,255,.06);
 }
 /* Pengaman: kontrol khusus jawaban AI tidak boleh muncul di bubble pertanyaan pengguna. */
 [data-testid="stChatMessage"]:has(.aog-user-marker) [data-testid*="DownloadButton"],
@@ -54,8 +68,24 @@ html, body, [class*="css"] { font-family: "Inter", ui-sans-serif, system-ui, -ap
 }
 [data-testid="stChatMessage"]:has(.aog-assistant-marker) {
   width:fit-content !important; max-width:96% !important; align-self:flex-start !important;
-  margin-right:auto !important; background:#0d1523 !important;
-  border-radius:18px 18px 18px 5px !important;
+  margin-right:auto !important;
+  background:linear-gradient(145deg,rgba(17,28,45,.98),rgba(9,17,30,.98)) !important;
+  border-color:rgba(112,126,255,.27) !important;
+  border-radius:20px 20px 20px 6px !important;
+  box-shadow:0 10px 30px rgba(22,34,78,.2), inset 0 1px rgba(255,255,255,.035);
+}
+[data-testid="stChatMessage"]:has(.aog-assistant-marker)::before {
+  content:""; position:absolute; left:0; top:16px; bottom:16px; width:3px;
+  border-radius:0 3px 3px 0;
+  background:linear-gradient(180deg,#38e7d3,#7773ff 55%,#ff70b8);
+  opacity:.9; pointer-events:none;
+}
+[data-testid="stChatMessage"]:has(.aog-assistant-marker) [data-testid*="ChatMessageAvatar"] {
+  background:transparent !important; border:1px solid rgba(56,231,211,.25) !important;
+  box-shadow:0 0 16px rgba(56,231,211,.14);
+}
+[data-testid="stChatMessage"]:has(.aog-assistant-marker) [data-testid*="ChatMessageAvatar"] img {
+  background:transparent !important; object-fit:contain !important;
 }
 .aog-user-marker, .aog-assistant-marker { display:none !important; }
 /* Jejak langkah menggunakan seluruh lebar kolom kanan dan rapat di bawah Mesin Council. */
@@ -1064,7 +1094,7 @@ with chat_box:
             with st.chat_message("user"):
                 render_user_message(m)
         elif m.get("role") == "assistant":
-            with st.chat_message("assistant"):
+            with st.chat_message("assistant", avatar=CHAT_ASSISTANT_AVATAR):
                 render_answer(m, i)
         else:
             with st.chat_message("user"):
@@ -1241,7 +1271,7 @@ if question:
                 }
         else:
             with chat_box:
-                with st.chat_message("assistant"):
+                with st.chat_message("assistant", avatar=CHAT_ASSISTANT_AVATAR):
                     st.markdown('<span class="aog-assistant-marker"></span>', unsafe_allow_html=True)
                     st.error(error or "Pipeline berhenti tanpa hasil.")
                     if getattr(run_router, "last_error", None):
