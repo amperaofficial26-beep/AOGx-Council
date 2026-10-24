@@ -69,20 +69,18 @@ def model_for(provider: str) -> str:
     return OPENAI_COMPAT[provider]["model"]
 
 
-# Opsional: paksa model tertentu untuk kombinasi (peran, provider).
-# Berguna untuk xKiro/OpenRouter yang menyediakan banyak vendor, supaya tiap agen
-# memakai "otak" berbeda. Contoh:
-#   ("skeptic", "xkiro"): "deepseek/<nama-model>",
-#   ("expert", "xkiro"): "anthropic/<nama-model>",
+# Pilihan model per peran/provider. Agent Code mempertahankan rute cepat 20B;
+# peran Council memakai GPT-OSS 120B secara eksplisit.
 ROLE_MODELS = {
-    # Model kecil untuk tugas ringan, supaya cepat dan hemat kuota.
-    # llama-3.1-8b-instant sudah dipensiunkan Groq (16 Agustus 2026); penggantinya gpt-oss-20b.
     ("orchestrator", "groq"): "openai/gpt-oss-20b",
     ("researcher", "groq"): "openai/gpt-oss-20b",
+    ("council_orchestrator", "groq"): "openai/gpt-oss-120b",
+    ("council_researcher", "groq"): "openai/gpt-oss-120b",
+    ("council_synthesizer", "groq"): "openai/gpt-oss-120b",
+    ("flash", "groq"): "openai/gpt-oss-120b",
 }
 
 # Rute fallback per peran: provider pertama dicoba dulu, kalau gagal lanjut ke berikutnya.
-# Peran berbeda sengaja diberi provider berbeda supaya sudut pandang model beragam.
 ROUTES = {
     "orchestrator": ["groq", "openrouter", "gemini"],
     "researcher":   ["groq", "openrouter", "gemini"],
@@ -91,10 +89,17 @@ ROUTES = {
     "expert":       ["openrouter", "requesty", "xkiro", "groq"],
     "verifier":     ["aion", "xkiro", "gemini", "openrouter"],
     "synthesizer":  ["gemini", "openrouter", "groq"],
+    "council_orchestrator": ["groq", "openrouter", "gemini"],
+    "council_researcher":   ["groq", "openrouter", "gemini"],
+    "council_synthesizer":  ["groq", "gemini", "openrouter"],
+    "flash":                ["groq", "openrouter", "gemini"],
 }
 
-# Mode kedalaman: (putaran diskusi, pakai verifikasi, maks ulang bila skor rendah)
+# Mode pipeline: putaran diskusi, verifikasi, dan batas percobaan revisi.
+# Normal satu putaran; Flash langsung menjawab dalam satu panggilan tanpa putaran/verifikasi.
 MODES = {
+    "Normal":   {"rounds": 1, "verify": True,  "max_retries": 0},
+    "Flash":    {"rounds": 0, "verify": False, "max_retries": 0},
     "Cepat":    {"rounds": 1, "verify": False, "max_retries": 0},
     "Seimbang": {"rounds": 2, "verify": True,  "max_retries": 1},
     "Mendalam": {"rounds": 3, "verify": True,  "max_retries": 2},
