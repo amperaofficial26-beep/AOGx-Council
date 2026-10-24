@@ -101,20 +101,17 @@ html, body, [class*="css"] { font-family: "Inter", ui-sans-serif, system-ui, -ap
 .aog-council-hero img { display:block; width:88px; height:88px; object-fit:contain; }
 .aog-council-hero .aog-title { margin:0; font-size:clamp(2.4rem,4.5vw,3.4rem); }
 .st-key-council-chat-column { width:min(100%,1120px) !important; margin:0 auto !important; }
-.st-key-council-chat-column:not(:has(.aog-council-chat-started)) {
-    min-height:clamp(320px,calc(100vh - 280px),760px) !important;
-    display:flex !important; flex-direction:column !important; justify-content:center !important;
-}
-.st-key-council-chat-column:not(:has(.aog-council-chat-started)) .st-key-chat-history {
-    display:none !important;
-}
 .st-key-council-chat-column:not(:has(.aog-council-chat-started)) .st-key-chat-composer-shell {
     position:static !important; bottom:auto !important; margin:0 auto !important; flex:0 0 auto !important;
 }
 .st-key-council-chat-column [data-testid="stElementContainer"]:has(.aog-council-chat-started) {
     display:none !important;
 }
+.st-key-council-chat-column [data-testid="stElementContainer"]:has(.aog-council-empty-spacer) {
+    margin:0 !important;
+}
 .aog-council-chat-started { display:none !important; }
+.aog-council-empty-spacer { width:100%; height:clamp(150px,26vh,260px); }
 .st-key-aog-topbar {
     width:100% !important; box-sizing:border-box !important; margin-bottom:1rem !important;
     padding:.55rem .7rem !important; border:1px solid rgba(104,128,165,.25) !important;
@@ -1162,8 +1159,13 @@ draw()
 CHAT_TAIL = '<div style="height:64px"></div>'
 
 with left:
-    # Keep the composer inline; the GitHub repository toolbar is only shown in Agent Code.
-    chat_box = st.container(height=700, border=False, key="chat-history")
+    # Agent Code keeps a fixed-height transcript. Council reserves an empty spacer before
+    # the composer, then fills the transcript slot above it once a conversation starts.
+    if is_agent_code_page:
+        chat_box = st.container(height=700, border=False, key="chat-history")
+    else:
+        council_transcript_slot = st.empty()
+        council_empty_spacer_slot = st.empty()
     with st.container(key="chat-composer-shell"):
         prompt = ("Kirim pesan ke AOGx Agent Code…" if is_agent_code_page
                   else "Kirim pesan ke AOGx Council…")
@@ -1192,6 +1194,15 @@ with left:
             st.markdown('<span class="aog-council-chat-started"></span>', unsafe_allow_html=True)
         if is_agent_code_page:
             github_pr_panel()
+    if not is_agent_code_page:
+        if messages or question:
+            council_empty_spacer_slot.empty()
+            with council_transcript_slot.container():
+                chat_box = st.container(height=700, border=False, key="chat-history")
+        else:
+            council_empty_spacer_slot.markdown(
+                '<div class="aog-council-empty-spacer"></div>', unsafe_allow_html=True)
+            chat_box = None
 
 # On rerun, consume each page's transient chat_input independently to avoid duplicate turns.
 rerun_key = f"_suppress_chat_input_once_{active_messages_key}"
@@ -1207,26 +1218,27 @@ if not question and auto_analysis_request:
     auto_analysis = bool(question)
 
 # Chat transcript, rendered separately for Council and Agent Code.
-with chat_box:
-    if not messages and not question and is_agent_code_page:
-        st.markdown('<div class="aog-warn">Belum ada pertanyaan. Kirim satu pertanyaan, lalu '
-                    'lihat mesin di kanan: kubus menyala biru saat agen bekerja, hijau saat '
-                    'selesai, dan abu-abu saat tahapannya dilewati.</div>',
-                    unsafe_allow_html=True)
-    for i, m in enumerate(messages):
-        # Only explicit user-role messages get a user bubble; only explicit assistant-role
-        # messages can render AI metadata/actions. Unknown legacy records are plain text.
-        if not isinstance(m, dict):
-            continue
-        if m.get("role") == "user":
-            with st.chat_message("user"):
-                render_user_message(m)
-        elif m.get("role") == "assistant":
-            with st.chat_message("assistant", avatar=CHAT_ASSISTANT_AVATAR):
-                render_answer(m, i)
-        else:
-            with st.chat_message("user"):
-                render_user_message({"role": "user", "content": str(m.get("content", ""))})
+if chat_box is not None:
+    with chat_box:
+        if not messages and not question and is_agent_code_page:
+            st.markdown('<div class="aog-warn">Belum ada pertanyaan. Kirim satu pertanyaan, lalu '
+                        'lihat mesin di kanan: kubus menyala biru saat agen bekerja, hijau saat '
+                        'selesai, dan abu-abu saat tahapannya dilewati.</div>',
+                        unsafe_allow_html=True)
+        for i, m in enumerate(messages):
+            # Only explicit user-role messages get a user bubble; only explicit assistant-role
+            # messages can render AI metadata/actions. Unknown legacy records are plain text.
+            if not isinstance(m, dict):
+                continue
+            if m.get("role") == "user":
+                with st.chat_message("user"):
+                    render_user_message(m)
+            elif m.get("role") == "assistant":
+                with st.chat_message("assistant", avatar=CHAT_ASSISTANT_AVATAR):
+                    render_answer(m, i)
+            else:
+                with st.chat_message("user"):
+                    render_user_message({"role": "user", "content": str(m.get("content", ""))})
 
 if question:
     question = question.strip()
@@ -1414,6 +1426,7 @@ if question:
             # Streamlit chat-message container and assistant-only actions stay separate.
             rerender_transcript(question, rerun_key)
 
-# Ruang bawah tetap setelah semua bubble, supaya bubble terakhir tidak terpotong fade.
-with chat_box:
-    st.markdown(CHAT_TAIL, unsafe_allow_html=True)
+# Ruang bawah tetap setelah bubble, supaya bubble terakhir tidak terpotong fade.
+if chat_box is not None:
+    with chat_box:
+        st.markdown(CHAT_TAIL, unsafe_allow_html=True)
