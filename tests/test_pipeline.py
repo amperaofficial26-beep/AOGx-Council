@@ -148,6 +148,19 @@ class PipelineTest(unittest.TestCase):
         self.assertEqual(synth_call.call_args.kwargs["role"], "council_synthesizer")
         self.assertEqual(final(events)["answer"], "jawaban")
 
+    def test_reloaded_all_providers_failed_class_keeps_actionable_error(self):
+        DuplicateAllProvidersFailed = type("AllProvidersFailed", (Exception,), {})
+        router = type("R", (), {})()
+
+        def fail_call(*_args, **_kwargs):
+            raise DuplicateAllProvidersFailed("Semua provider untuk peran 'flash' gagal.")
+
+        router.chat = fail_call
+        events = list(pipeline.run(router, "uji", "Flash"))
+        self.assertEqual(events[-1]["kind"], "error")
+        self.assertIn("peran 'flash'", events[-1]["text"])
+        self.assertNotIn("Terjadi kesalahan tak terduga", events[-1]["text"])
+
     def test_verifier_unavailable_marks_unverified(self):
         fake_router = type("R", (), {"tavily": FakeTavily(available=False)})()
         with patch.object(pipeline.orchestrator, "plan", return_value=(PLAN, "groq")), \
