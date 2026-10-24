@@ -99,10 +99,32 @@ html, body, [class*="css"] { font-family: "Inter", ui-sans-serif, system-ui, -ap
   filter:drop-shadow(0 0 10px rgba(56,231,211,.24)); }
 .aog-brand-header .aog-title { margin:0; }
 .aog-council-hero { display:flex; align-items:center; justify-content:center; gap:22px;
-  margin:.65rem auto 1.25rem; text-align:center; flex-wrap:wrap; }
+  margin:.65rem auto 1.25rem; text-align:center; flex-wrap:wrap; max-height:260px; }
 .aog-council-hero img { display:block; width:128px; height:128px; object-fit:contain; }
 .aog-council-hero .aog-title { margin:0; font-size:clamp(3rem,5.2vw,4.4rem); }
+body:has(.aog-council-chat-started) .aog-council-hero {
+  overflow:hidden; pointer-events:none;
+  animation:aogCouncilHeroExit 720ms cubic-bezier(.22,.76,.24,1) both;
+}
+@keyframes aogCouncilHeroExit {
+  0% { max-height:260px; margin-top:.65rem; margin-bottom:1.25rem;
+    opacity:1; filter:blur(0); transform:translateY(0) scale(1); }
+  58% { max-height:148px; margin-top:.3rem; margin-bottom:.55rem;
+    opacity:.56; filter:blur(3px); transform:translateY(-12px) scale(.97); }
+  100% { max-height:0; margin-top:0; margin-bottom:0;
+    opacity:0; filter:blur(11px); transform:translateY(-32px) scale(.92); }
+}
 .st-key-council-chat-column { width:min(100%,1120px) !important; margin:0 auto !important; }
+.st-key-council-chat-column:has(.aog-council-chat-started) {
+  transform-origin:top center;
+  animation:aogCouncilChatDrop 740ms cubic-bezier(.2,.78,.22,1) 140ms both;
+}
+@keyframes aogCouncilChatDrop {
+  0% { opacity:1; transform:translate3d(0,0,0); }
+  16% { opacity:.92; transform:translate3d(0,-16px,0); }
+  76% { opacity:1; transform:translate3d(0,4px,0); }
+  100% { opacity:1; transform:translate3d(0,0,0); }
+}
 .st-key-council-chat-column .st-key-chat-composer-shell {
     isolation:isolate !important; min-height:120px !important; padding:.45rem .75rem .55rem !important;
     border:1px solid transparent !important; border-radius:24px !important;
@@ -145,6 +167,13 @@ html, body, [class*="css"] { font-family: "Inter", ui-sans-serif, system-ui, -ap
 @media (prefers-reduced-motion: reduce) {
   .st-key-council-chat-column .st-key-chat-composer-shell::before {
     animation:none; filter:blur(34px); opacity:.34;
+  }
+  body:has(.aog-council-chat-started) .aog-council-hero {
+    animation:none; max-height:0; margin:0 auto; overflow:hidden;
+    opacity:0; filter:none; transform:translateY(-12px);
+  }
+  .st-key-council-chat-column:has(.aog-council-chat-started) {
+    animation:none; opacity:1; transform:none;
   }
 }
 .st-key-council-chat-column:not(:has(.aog-council-chat-started)) .st-key-chat-composer-shell {
