@@ -125,6 +125,14 @@ body:has(.aog-council-chat-started) .aog-council-hero {
   76% { opacity:1; transform:translate3d(0,4px,0); }
   100% { opacity:1; transform:translate3d(0,0,0); }
 }
+.st-key-council-chat-column:has(.aog-council-chat-started) .st-key-chat-history {
+  animation:aogCouncilBubbleAreaLower 560ms cubic-bezier(.22,.72,.22,1) 120ms both;
+}
+@keyframes aogCouncilBubbleAreaLower {
+  0% { margin-top:0; }
+  72% { margin-top:clamp(32px,4.8vh,44px); }
+  100% { margin-top:clamp(24px,4vh,36px); }
+}
 .st-key-council-chat-column .st-key-chat-composer-shell {
     isolation:isolate !important; min-height:120px !important; padding:.45rem .75rem .55rem !important;
     border:1px solid transparent !important; border-radius:24px !important;
@@ -174,6 +182,9 @@ body:has(.aog-council-chat-started) .aog-council-hero {
   }
   .st-key-council-chat-column:has(.aog-council-chat-started) {
     animation:none; opacity:1; transform:none;
+  }
+  .st-key-council-chat-column:has(.aog-council-chat-started) .st-key-chat-history {
+    animation:none; margin-top:clamp(24px,4vh,36px);
   }
 }
 .st-key-council-chat-column:not(:has(.aog-council-chat-started)) .st-key-chat-composer-shell {
