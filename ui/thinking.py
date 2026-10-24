@@ -1,11 +1,11 @@
-"""Animasi loading 'thinking' Council: orb neural berputar, teks berkilau, gelombang sinyal.
-
-CSS murni (tanpa JavaScript) sehingga aman dipakai lewat st.markdown(unsafe_allow_html=True)
-dan diganti-ganti tiap event pipeline lewat placeholder st.empty().
-"""
+"""Animasi loading Council dengan logo AOGx, teks berkilau, dan gelombang sinyal."""
+import base64
 import html
+from pathlib import Path
 
 BARS = 14
+_LOGO_PATH = Path(__file__).resolve().parent / "assets" / "aogx-mark.png"
+_LOGO_SRC = "data:image/png;base64," + base64.b64encode(_LOGO_PATH.read_bytes()).decode("ascii")
 
 CSS = """
 <style>
@@ -14,7 +14,8 @@ CSS = """
 @keyframes aogWave { 0%,100% { transform: scaleY(.22); opacity: .4; } 50% { transform: scaleY(1); opacity: 1; } }
 @keyframes aogDot { 0%,80%,100% { transform: translateY(0); opacity: .25; } 40% { transform: translateY(-4px); opacity: 1; } }
 @keyframes aogSweep { 0% { transform: translateX(-110%); } 100% { transform: translateX(280%); } }
-@keyframes aogCore { 0%,100% { transform: scale(.8); filter: brightness(.9); } 50% { transform: scale(1.18); filter: brightness(1.4); } }
+@keyframes aogLogoPulse { 0%,100% { transform: scale(.94); filter: drop-shadow(0 0 3px rgba(56,231,211,.28)); } 50% { transform: scale(1.04); filter: drop-shadow(0 0 10px rgba(119,115,255,.75)); } }
+@keyframes aogLogoGlow { 0%,100% { transform: scale(.8); opacity: .2; } 50% { transform: scale(1.14); opacity: .62; } }
 @keyframes aogEnter { from { opacity: 0; transform: translateY(6px) scale(.985); } to { opacity: 1; transform: none; } }
 
 .aog-think { position: relative; display: flex; align-items: center; gap: 14px; padding: 12px 15px 15px;
@@ -26,17 +27,12 @@ CSS = """
 .aog-think::after { content: ""; position: absolute; z-index: -1; inset: 1.5px; border-radius: 12.5px;
   background: linear-gradient(180deg, #0d1a2c, #07101f); }
 
-.aog-orb { position: relative; width: 42px; height: 42px; flex: none; }
-.aog-orb i { position: absolute; inset: 0; border-radius: 50%; border: 1px solid rgba(56,189,248,.28);
-  animation: aogSpin 2.4s linear infinite; }
-.aog-orb i::before { content: ""; position: absolute; top: -3px; left: 50%; width: 6px; height: 6px; margin-left: -3px;
-  border-radius: 50%; background: #67e8f9; box-shadow: 0 0 9px #22d3ee; }
-.aog-orb i:nth-child(2) { inset: 7px; border-color: rgba(167,139,250,.32); animation-duration: 1.7s; animation-direction: reverse; }
-.aog-orb i:nth-child(2)::before { background: #c4b5fd; box-shadow: 0 0 9px #8b5cf6; }
-.aog-orb i:nth-child(3) { inset: 14px; border-color: rgba(255,105,188,.32); animation-duration: 1.15s; }
-.aog-orb i:nth-child(3)::before { width: 4px; height: 4px; top: -2px; margin-left: -2px; background: #f9a8d4; box-shadow: 0 0 8px #ff69bc; }
-.aog-orb b { position: absolute; inset: 18px; border-radius: 50%;
-  background: radial-gradient(circle, #fff, #22d3ee 55%, #8b5cf6); animation: aogCore 1.4s ease-in-out infinite; }
+.aog-logo-wrap { position: relative; width: 48px; height: 48px; flex: none; display: grid; place-items: center; }
+.aog-logo-wrap::before { content: ""; position: absolute; inset: 8px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(56,231,211,.5), rgba(119,115,255,.2) 52%, transparent 76%);
+  filter: blur(8px); animation: aogLogoGlow 1.8s ease-in-out infinite; }
+.aog-logo { position: relative; z-index: 1; display: block; width: 44px; height: 44px;
+  object-fit: contain; animation: aogLogoPulse 1.8s ease-in-out infinite; }
 
 .aog-think-body { min-width: 0; flex: 1; }
 .aog-think-role { display: inline-block; font: 600 9.5px ui-monospace, "Fira Code", Menlo, monospace; letter-spacing: 1.1px;
@@ -59,8 +55,8 @@ CSS = """
   background: linear-gradient(90deg, transparent, #22d3ee, #ff69bc, transparent); animation: aogSweep 1.5s ease-in-out infinite; }
 
 @media (prefers-reduced-motion: reduce) {
-  .aog-think, .aog-think::before, .aog-orb i, .aog-orb b, .aog-think-text span.t, .aog-dots i, .aog-wave i,
-  .aog-think-bar::after { animation: none !important; }
+  .aog-think, .aog-think::before, .aog-logo, .aog-logo-wrap::before,
+  .aog-think-text span.t, .aog-dots i, .aog-wave i, .aog-think-bar::after { animation: none !important; }
   .aog-think-text span.t { -webkit-text-fill-color: #bae6fd; }
 }
 </style>
@@ -72,7 +68,8 @@ def render(text: str, role: str = "") -> str:
     label = html.escape(str(text or "Council bekerja").rstrip("….. ") or "Council bekerja")
     chip = f'<div class="aog-think-role">{html.escape(str(role))}</div>' if role else ""
     bars = "".join(f'<i style="animation-delay:-{(i * 0.37) % 1.1:.2f}s"></i>' for i in range(BARS))
-    return (f'<div class="aog-think"><div class="aog-orb"><i></i><i></i><i></i><b></b></div>'
+    return (f'<div class="aog-think"><div class="aog-logo-wrap">'
+            f'<img class="aog-logo" src="{_LOGO_SRC}" alt="AOGx" /></div>'
             f'<div class="aog-think-body">{chip}'
             f'<div class="aog-think-text"><span class="t">{label}</span>'
             f'<span class="aog-dots"><i></i><i></i><i></i></span></div>'

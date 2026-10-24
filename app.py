@@ -3,6 +3,7 @@
 Tata letak: 2/4 kiri khusus chat (permanen, tanpa sidebar), 2/4 kanan untuk mesin proses.
 Di kolom kanan: Mesin Council, lalu panel Jejak langkah selebar penuh tepat di bawahnya.
 """
+import base64
 import difflib
 import hmac
 import re
@@ -23,6 +24,17 @@ from ui import machine, neural, theme, thinking
 from ui.flow import CouncilFlow
 
 CHAT_ASSISTANT_AVATAR = str(Path(__file__).resolve().parent / "ui" / "assets" / "aogx-mark.png")
+CHAT_ASSISTANT_AVATAR_DATA = base64.b64encode(Path(CHAT_ASSISTANT_AVATAR).read_bytes()).decode("ascii")
+
+
+def render_brand_header():
+    logo = f"data:image/png;base64,{CHAT_ASSISTANT_AVATAR_DATA}"
+    st.markdown(
+        f'<div class="aog-brand-header"><img src="{logo}" alt="Logo AOGx">'
+        '<div class="aog-title">AOGx Council</div></div>',
+        unsafe_allow_html=True,
+    )
+
 
 st.set_page_config(page_title="AOGx Council", page_icon=":material/hub:", layout="wide",
                    initial_sidebar_state="collapsed")
@@ -40,6 +52,10 @@ html, body, [class*="css"] { font-family: "Inter", ui-sans-serif, system-ui, -ap
 .aog-title { font-size: 1.5rem; font-weight: 800; letter-spacing: .5px; line-height: 1.15;
   background: linear-gradient(90deg, #e5e7eb, #94a3b8 60%, #cbd5e1);
   -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+.aog-brand-header { display:flex; align-items:center; gap:10px; min-height:48px; margin-bottom:.3rem; }
+.aog-brand-header img { display:block; width:48px; height:48px; object-fit:contain;
+  filter:drop-shadow(0 0 10px rgba(56,231,211,.24)); }
+.aog-brand-header .aog-title { margin:0; }
 [data-testid="stChatMessage"] {
   position:relative; background:linear-gradient(145deg,#111c2d,#0a1321);
   border:1px solid rgba(116,143,184,.24); border-radius:20px;
@@ -175,7 +191,7 @@ html, body, [class*="css"] { font-family: "Inter", ui-sans-serif, system-ui, -ap
 # ---------- Gerbang kode akses (opsional) ----------
 access_code = config.get_secret("APP_ACCESS_CODE")
 if access_code and not st.session_state.get("auth"):
-    st.markdown('<div class="aog-title">AOGx Council</div>', unsafe_allow_html=True)
+    render_brand_header()
     entered = st.text_input("Kode akses", type="password")
     if entered:
         if hmac.compare_digest(entered.encode(), access_code.encode()):
@@ -985,7 +1001,7 @@ active = [] if demo else router.active_providers()
 left, right = st.columns([2, 2], gap="medium")
 
 with left:
-    st.markdown('<div class="aog-title">AOGx Council</div>', unsafe_allow_html=True)
+    render_brand_header()
     b1, b2 = st.columns(2)
     with b1:
         with st.popover(ss.mode, icon=":material/tune:", use_container_width=True,
