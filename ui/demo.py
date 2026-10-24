@@ -77,6 +77,8 @@ class DemoRouter:
     # ---- panggilan ----
     def chat(self, role, messages, temperature=0.7, max_tokens=1500):
         """Return (teks, provider) seperti Router asli."""
+        if role == "flash":
+            role = "synthesizer"  # satu respons langsung juga saat demo tanpa API key
         time.sleep(self.latency + self._rng.random() * 0.5)
         if self._rng.random() < self.bad_rate:
             self.stats.setdefault("demo", {"ok": 0, "fail": 0})["fail"] += 1
