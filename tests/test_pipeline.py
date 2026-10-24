@@ -98,6 +98,56 @@ class PipelineTest(unittest.TestCase):
         self.assertIsNone(f["score"])
         self.assertNotIn("Verifikasi", [e["stage"] for e in events if e["kind"] == "agent"])
 
+    def test_flash_uses_one_direct_model_call_without_council_agents(self):
+        calls = []
+        router = type("R", (), {"tavily": FakeTavily(available=False)})()
+
+        def direct_call(role, messages, **kwargs):
+            calls.append((role, messages, kwargs))
+            return "jawaban langsung", "groq"
+
+        router.chat = direct_call
+        events = list(pipeline.run(router, "Pertanyaan cepat", "Flash", "riwayat singkat"))
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(calls[0][0], "flash")
+        self.assertIn("AOGx Council", calls[0][1][0]["content"])
+        self.assertEqual(calls[0][2]["max_tokens"], 1200)
+        self.assertEqual([e["kind"] for e in events], ["status", "agent", "final"])
+        self.assertEqual(final(events)["answer"], "jawaban langsung")
+        self.assertFalse(final(events)["verified"])
+        self.assertEqual(final(events)["providers"], ["groq"])
+
+    def test_normal_mode_is_one_discussion_round_without_revisions(self):
+        mode = config.MODES["Normal"]
+        self.assertEqual(mode["rounds"], 1)
+        self.assertTrue(mode["verify"])
+        self.assertEqual(mode["max_retries"], 0)
+        events = run_events(rounds=mode["rounds"], verify=mode["verify"],
+                            max_retries=mode["max_retries"], scores=[0.2, 0.95])
+        stages = [e["stage"] for e in events if e["kind"] == "agent"]
+        self.assertIn("Diskusi putaran 1", stages)
+        self.assertNotIn("Diskusi putaran 2", stages)
+        self.assertIn("Verifikasi", stages)
+        self.assertNotIn("Revisi", stages)
+
+    def test_council_pipeline_uses_dedicated_gpt_oss_roles(self):
+        plan = dict(PLAN, complexity="complex", needs_web=True, search_queries=["q"])
+        fake_router = type("R", (), {"tavily": FakeTavily(available=True)})()
+        with patch.object(pipeline.orchestrator, "plan", return_value=(plan, "groq")) as plan_call, \
+             patch.object(pipeline.researcher, "gather",
+                          return_value=("catatan", [{"title": "t", "url": "u"}], "groq")) as research_call, \
+             patch.object(pipeline.debaters, "opening", return_value=("pandangan", "groq")), \
+             patch.object(pipeline.synthesizer, "synthesize", return_value=("jawaban", "groq")) as synth_call, \
+             patch.object(pipeline.verifier, "verify",
+                          return_value=({"score": 0.9, "issues": []}, "groq")):
+            events = list(pipeline.run(fake_router, "pertanyaan", "Normal", council_mode=True))
+
+        plan_call.assert_called_once_with(fake_router, "pertanyaan", "", role="council_orchestrator")
+        research_call.assert_called_once_with(fake_router, plan, "pertanyaan",
+                                              role="council_researcher")
+        self.assertEqual(synth_call.call_args.kwargs["role"], "council_synthesizer")
+        self.assertEqual(final(events)["answer"], "jawaban")
+
     def test_verifier_unavailable_marks_unverified(self):
         fake_router = type("R", (), {"tavily": FakeTavily(available=False)})()
         with patch.object(pipeline.orchestrator, "plan", return_value=(PLAN, "groq")), \
