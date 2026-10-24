@@ -105,10 +105,18 @@ class RouterTest(unittest.TestCase):
         router = self.make_router()
         groq = ModelProvider("groq")
         router.providers = {"groq": groq}
-        for role in ("council_orchestrator", "council_researcher", "council_synthesizer", "flash"):
+        roles = ("council_orchestrator", "council_researcher", "council_synthesizer", "flash")
+        for role in roles:
             with patch.dict(config.ROUTES, {role: ["groq"]}, clear=False):
                 router.chat(role, [{"role": "user", "content": "uji"}])
             self.assertEqual(groq.model, "openai/gpt-oss-120b", role)
+
+        # Provider alternatif tetap bisa melayani Council jika Groq/Gemini tidak aktif.
+        aion = FakeProvider("aion", reply="fallback")
+        router.providers = {"aion": aion}
+        for role in roles:
+            _, used = router.chat(role, [{"role": "user", "content": "uji"}])
+            self.assertEqual(used, "aion", role)
 
         # Rute lama untuk Agent Code tetap mempertahankan model dan kedalaman semula.
         self.assertEqual(config.ROLE_MODELS[("orchestrator", "groq")], "openai/gpt-oss-20b")
