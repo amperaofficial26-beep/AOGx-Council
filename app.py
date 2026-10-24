@@ -102,24 +102,26 @@ html, body, [class*="css"] { font-family: "Inter", ui-sans-serif, system-ui, -ap
   margin:.65rem auto 1.25rem; text-align:center; flex-wrap:wrap; }
 .aog-council-hero img { display:block; width:128px; height:128px; object-fit:contain; }
 .aog-council-hero .aog-title { margin:0; font-size:clamp(3rem,5.2vw,4.4rem); }
-.st-key-council-chat-column { width:min(100%,1120px) !important; margin:0 auto !important;
-  position:relative !important; isolation:isolate !important; overflow:visible !important; }
-.st-key-council-chat-column::before {
-  content:""; position:absolute; z-index:-1; inset:18px 6% 0; border-radius:50%;
-  background:conic-gradient(from 0deg,rgba(56,231,211,.75),rgba(111,120,255,.7),
-    rgba(255,112,184,.7),rgba(255,190,92,.62),rgba(56,231,211,.75));
-  filter:blur(70px); opacity:.34; pointer-events:none;
-  animation:aogCouncilAura 11s ease-in-out infinite;
+.st-key-council-chat-column { width:min(100%,1120px) !important; margin:0 auto !important; }
+.st-key-council-chat-column .st-key-chat-composer-shell { isolation:isolate !important; }
+.st-key-council-chat-column .st-key-chat-composer-shell::before {
+  content:""; position:absolute; z-index:-1; inset:-18px -32px; border-radius:999px;
+  background:radial-gradient(ellipse at center,rgba(56,231,211,.8) 0%,
+    rgba(111,120,255,.58) 42%,rgba(255,112,184,.38) 68%,transparent 100%);
+  filter:blur(34px) hue-rotate(0deg); opacity:.38; pointer-events:none;
+  animation:aogCouncilGlowColors 9s ease-in-out infinite;
 }
-@keyframes aogCouncilAura {
-  0%,100% { transform:scale(.90) rotate(0deg); filter:blur(62px) hue-rotate(0deg); opacity:.28; }
-  50% { transform:scale(1.06) rotate(180deg); filter:blur(84px) hue-rotate(90deg); opacity:.48; }
+@keyframes aogCouncilGlowColors {
+  0%,100% { filter:blur(34px) hue-rotate(0deg); opacity:.34; }
+  50% { filter:blur(34px) hue-rotate(180deg); opacity:.5; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .st-key-council-chat-column::before { animation:none; opacity:.28; }
+  .st-key-council-chat-column .st-key-chat-composer-shell::before {
+    animation:none; filter:blur(34px); opacity:.34;
+  }
 }
 .st-key-council-chat-column:not(:has(.aog-council-chat-started)) .st-key-chat-composer-shell {
-    position:static !important; bottom:auto !important; margin:0 auto !important; flex:0 0 auto !important;
+    position:relative !important; bottom:auto !important; margin:0 auto !important; flex:0 0 auto !important;
 }
 .st-key-council-chat-column [data-testid="stElementContainer"]:has(.aog-council-chat-started) {
     display:none !important;
