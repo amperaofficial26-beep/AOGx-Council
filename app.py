@@ -108,7 +108,7 @@ html, body, [class*="css"] { font-family: "Inter", ui-sans-serif, system-ui, -ap
 }
 .st-key-chat-composer-shell [data-testid="stChatInput"] textarea {
     min-height: 52px !important;
-    transform: translateY(6px) !important;
+    transform: translateY(10px) !important;
 }
 .st-key-chat-composer-shell .st-key-github-repo-toolbar {
     position: static !important;
