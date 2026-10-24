@@ -154,4 +154,11 @@ def run(router, question: str, mode_name: str, history: str = "",
     except AllProvidersFailed as e:
         yield {"kind": "error", "text": str(e)}
     except Exception as e:  # jangan bocorkan detail internal ke UI
-        yield {"kind": "error", "text": f"Terjadi kesalahan tak terduga ({e.__class__.__name__})."}
+        # Duplicate module imports can give the same named exception a different class identity.
+        if e.__class__.__name__ == "AllProvidersFailed":
+            message = str(e).strip() or (
+                "Semua provider gagal atau tidak aktif. Periksa API key, model, dan koneksi provider."
+            )
+        else:
+            message = f"Terjadi kesalahan tak terduga ({e.__class__.__name__})."
+        yield {"kind": "error", "text": message}
