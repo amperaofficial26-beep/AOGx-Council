@@ -72,8 +72,14 @@ html, body, [class*="css"] { font-family: "Inter", ui-sans-serif, system-ui, -ap
 .st-key-council-lower-panels .aog-log {
     max-height: 680px;
 }
+/* Turunkan composer dan toolbar repo sedikit agar keduanya lebih dekat ke dasar area chat. */
+[data-testid="stBottom"] {
+    transform: translateY(12px) !important;
+}
 /* Compact Arena-style GitHub repo / branch selector below the chat composer. */
 .st-key-github-repo-toolbar {
+    position: relative !important;
+    top: 12px !important;
     padding: 0.32rem 0.45rem !important;
     border-radius: 16px !important;
     border-color: rgba(130, 145, 168, 0.24) !important;
