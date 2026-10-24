@@ -1005,9 +1005,6 @@ with chat_box:
                 render_user_message(m)
             else:
                 render_answer(m, i)
-    # Placeholder loading ditempatkan di dalam riwayat chat, tepat setelah pesan,
-    # agar tidak dirender di bawah composer chat atau panel GitHub.
-    live_status = st.empty()
 
 if question:
     question = question.strip()
@@ -1031,11 +1028,9 @@ if question:
             with st.chat_message("assistant"):
                 render_answer(msg, len(ss.messages) - 1)
     elif len(question) > config.MAX_QUESTION_CHARS:
-        live_status.empty()
         with chat_box:
             st.error(f"Pertanyaan terlalu panjang (maks {config.MAX_QUESTION_CHARS} karakter).")
     elif ss.n_requests >= config.MAX_REQUESTS_PER_SESSION:
-        live_status.empty()
         with chat_box:
             st.error("Batas permintaan sesi ini tercapai. Klik \"Chat baru\" atau muat ulang halaman.")
     elif github_connected and is_repo_implementation_request(question) and not auto_analysis:
@@ -1046,6 +1041,8 @@ if question:
         with chat_box:
             with st.chat_message("user"):
                 render_user_message(user_msg)
+            # Placeholder dibuat setelah bubble user agar loading muncul di bawah pertanyaan.
+            live_status = st.empty()
 
         answer = ""
         provider = None
@@ -1088,7 +1085,6 @@ if question:
             with st.chat_message("assistant"):
                 render_answer(assistant_msg, len(ss.messages) - 1)
     elif not usable or (auto_analysis and demo):
-        live_status.empty()
         if auto_analysis:
             ss.pop("gh_auto_analysis_pending", None)
         with chat_box:
@@ -1134,10 +1130,12 @@ if question:
             from ui.demo import DemoRouter
             run_router = DemoRouter()
 
-        # Urutan: bubble user -> indikator proses di luar area scroll -> bubble AI.
+        # Urutan: bubble user -> indikator proses -> bubble AI, seluruhnya di area riwayat chat.
         with chat_box:
             with st.chat_message("user"):
                 render_user_message({"role": "user", "content": question})
+            # Penting: buat placeholder SETELAH bubble user agar urutan visual benar.
+            live_status = st.empty()
 
         live_status.markdown(
             thinking.render(flow.stage_text or "Council mulai bekerja") + CHAT_TAIL,
