@@ -36,6 +36,37 @@ def render_brand_header():
     )
 
 
+def select_topbar_page(page: str):
+    ss["active_topbar_page"] = page
+
+
+def render_topbar():
+    """Top navigation; unfinished destinations intentionally render as empty pages."""
+    pages = [
+        ("Council", "AOGx Council", ":material/home:"),
+        ("Agent code", "AOGx Agent Code", ":material/code:"),
+        ("Privacy", "Privacy Policy", ":material/policy:"),
+        ("Help", "Help & Fallback", ":material/help:"),
+        ("Account", "Kartu Akun", ":material/account_circle:"),
+        ("Settings", "Pengaturan", ":material/settings:"),
+    ]
+    with st.container(key="aog-topbar"):
+        brand_col, nav_col = st.columns([2.2, 7.8], gap="medium", vertical_alignment="center")
+        with brand_col:
+            render_brand_header()
+        with nav_col:
+            nav_cols = st.columns([1.0, 1.25, 1.15, 1.35, 1.0, .95],
+                                  gap="small", vertical_alignment="center")
+            for col, (key, label, icon) in zip(nav_cols, pages):
+                with col:
+                    st.button(
+                        label, key=f"topbar_{key}", icon=icon,
+                        type="primary" if ss.get("active_topbar_page") == label else "secondary",
+                        use_container_width=True,
+                        on_click=select_topbar_page, args=(label,),
+                    )
+
+
 st.set_page_config(page_title="AOGx Council", page_icon=":material/hub:", layout="wide",
                    initial_sidebar_state="collapsed")
 
@@ -49,13 +80,25 @@ st.markdown("""
 [data-testid="stSidebar"], [data-testid="stSidebarCollapsedControl"],
 [data-testid="collapsedControl"] { display: none !important; }
 html, body, [class*="css"] { font-family: "Inter", ui-sans-serif, system-ui, -apple-system, sans-serif; }
-.aog-title { font-size: 1.5rem; font-weight: 800; letter-spacing: .5px; line-height: 1.15;
+.aog-title { font-size: 1.9rem; font-weight: 800; letter-spacing: .5px; line-height: 1.15;
   background: linear-gradient(90deg, #e5e7eb, #94a3b8 60%, #cbd5e1);
   -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-.aog-brand-header { display:flex; align-items:center; gap:10px; min-height:48px; margin-bottom:.3rem; }
-.aog-brand-header img { display:block; width:48px; height:48px; object-fit:contain;
+.aog-brand-header { display:flex; align-items:center; gap:10px; min-height:60px; margin:0; }
+.aog-brand-header img { display:block; width:60px; height:60px; object-fit:contain;
   filter:drop-shadow(0 0 10px rgba(56,231,211,.24)); }
 .aog-brand-header .aog-title { margin:0; }
+.st-key-aog-topbar {
+    width:100% !important; box-sizing:border-box !important; margin-bottom:1rem !important;
+    padding:.55rem .7rem !important; border:1px solid rgba(104,128,165,.25) !important;
+    border-radius:18px !important; background:linear-gradient(120deg,rgba(14,23,38,.97),rgba(8,15,27,.97)) !important;
+    box-shadow:0 10px 28px rgba(0,0,0,.18);
+}
+.st-key-aog-topbar [data-testid="stHorizontalBlock"] { align-items:center !important; gap:.45rem !important; }
+.st-key-aog-topbar [data-testid="stButton"] { margin:0 !important; }
+.st-key-aog-topbar [data-testid="stButton"] button {
+    min-height:44px !important; padding:.35rem .45rem !important; border-radius:12px !important;
+    font-size:.78rem !important; font-weight:650 !important; white-space:nowrap !important;
+}
 [data-testid="stChatMessage"] {
   position:relative; background:linear-gradient(145deg,#111c2d,#0a1321);
   border:1px solid rgba(116,143,184,.24); border-radius:20px;
@@ -218,6 +261,7 @@ ss = st.session_state
 ss.setdefault("messages", [])
 ss.setdefault("n_requests", 0)
 ss.setdefault("demo", not bool(router.active_providers()))
+ss.setdefault("active_topbar_page", "AOGx Council")
 
 
 def history_text(messages, pairs: int = 3) -> str:
@@ -1003,11 +1047,15 @@ if ss.mode not in config.MODES:
 demo = ss.demo
 active = [] if demo else router.active_providers()
 
+# Topbar global dan halaman placeholder untuk menu yang belum diisi.
+render_topbar()
+if ss.active_topbar_page != "AOGx Council":
+    st.stop()
+
 # ---------- Tata letak: 2/4 chat | 2/4 mesin ----------
 left, right = st.columns([2, 2], gap="medium")
 
 with left:
-    render_brand_header()
     b1, b2 = st.columns(2)
     with b1:
         with st.popover(ss.mode, icon=":material/tune:", use_container_width=True,
