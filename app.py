@@ -1,8 +1,7 @@
 """AOGx-Council: diskusi multi-agen AI dengan orchestrator dan penyaringan jawaban berlapis.
 
-Tata letak: 2/4 kiri khusus chat (permanen, tanpa sidebar), 2/4 kanan "mesin" proses agen.
-Di kolom kanan: Mesin Council selebar penuh, lalu di bawahnya "Jejak langkah" dan
-"Alur Council" berdampingan.
+Tata letak: 2/4 kiri khusus chat (permanen, tanpa sidebar), 2/4 kanan untuk mesin proses.
+Di kolom kanan: Mesin Council, lalu panel Jejak langkah selebar penuh tepat di bawahnya.
 """
 import difflib
 import hmac
@@ -46,21 +45,32 @@ html, body, [class*="css"] { font-family: "Inter", ui-sans-serif, system-ui, -ap
   background:#12483d !important; border-color:#216d59 !important;
   border-radius:18px 18px 5px 18px !important;
 }
+/* Pengaman: kontrol khusus jawaban AI tidak boleh muncul di bubble pertanyaan pengguna. */
+[data-testid="stChatMessage"]:has(.aog-user-marker) [data-testid*="DownloadButton"],
+[data-testid="stChatMessage"]:has(.aog-user-marker) [data-testid="stDownloadButton"],
+[data-testid="stChatMessage"]:has(.aog-user-marker) [data-testid="stButton"],
+[data-testid="stChatMessage"]:has(.aog-user-marker) .aog-assistant-actions {
+  display:none !important;
+}
 [data-testid="stChatMessage"]:has(.aog-assistant-marker) {
   width:fit-content !important; max-width:96% !important; align-self:flex-start !important;
   margin-right:auto !important; background:#0d1523 !important;
   border-radius:18px 18px 18px 5px !important;
 }
 .aog-user-marker, .aog-assistant-marker { display:none !important; }
-/* Jejak langkah dan Alur Council dibuat lebih rapat ke Mesin Council. */
-.aog-log {
-    max-height: 580px;
-}
-
+/* Jejak langkah menggunakan seluruh lebar kolom kanan dan rapat di bawah Mesin Council. */
 .st-key-council-lower-panels {
-    margin-top: -44px !important;
+    width: 100% !important;
+    margin-top: -16px !important;
     position: relative;
     z-index: 2;
+}
+.st-key-council-lower-panels .aog-panel {
+    width: 100% !important;
+    box-sizing: border-box !important;
+}
+.st-key-council-lower-panels .aog-log {
+    max-height: 680px;
 }
 /* Compact Arena-style GitHub repo / branch selector below the chat composer. */
 .st-key-github-repo-toolbar {
@@ -468,12 +478,11 @@ def perform_repo_implementation(client: GitHubClient, snapshot: dict, task: str)
     }
 
 def render_answer(msg: dict, idx: int):
-    # Defense in depth: user messages must never display assistant-only controls.
-    if msg.get("role") != "assistant":
-        render_user_message(msg)
+    """Render an assistant answer and its actions; fail closed for non-assistant messages."""
+    if not isinstance(msg, dict) or msg.get("role") != "assistant":
         return
     st.markdown('<span class="aog-assistant-marker"></span>', unsafe_allow_html=True)
-    st.markdown(msg["content"])
+    st.markdown(str(msg.get("content", "")))
     meta = msg.get("meta", {})
     bits = []
     if meta.get("score") is not None:
@@ -929,25 +938,17 @@ with right:
     st.markdown(":material/hub: **Mesin proses**")
     ph_chips = st.empty()
     ph_graph = st.empty()
-    # Panel bawah dirapatkan ke Mesin Council.
+    # Jejak langkah penuh-lebar, tepat di bawah Mesin Council. Alur Council dihapus dari halaman.
     with st.container(key="council-lower-panels"):
-        log_col, flow_col = st.columns([1.55, 1], gap="small")
-
-        with log_col:
-            st.markdown(":material/receipt_long: **Jejak langkah**")
-            ph_log = st.empty()
-
-        with flow_col:
-            ph_flow = st.empty()
+        st.markdown(":material/receipt_long: **Jejak langkah**")
+        ph_log = st.empty()
 
     graph_cache = {}
-    flow_cache = {}
 
 
 def draw(redraw_log: bool = True):
     ph_chips.markdown(theme.panel(flow.render_chips() + theme.LEGEND), unsafe_allow_html=True)
     neural.show(ph_graph, flow, graph_cache)
-    neural.show_flow(ph_flow, flow, flow_cache)
     if redraw_log:
         ph_log.markdown(theme.panel(flow.render_log()), unsafe_allow_html=True)
 
@@ -999,12 +1000,19 @@ with chat_box:
                     'selesai, dan abu-abu saat tahapannya dilewati.</div>',
                     unsafe_allow_html=True)
     for i, m in enumerate(ss.messages):
-        role = "user" if m.get("role") == "user" else "assistant"
-        with st.chat_message(role):
-            if role == "user":
+        # Only explicit user-role messages get a user bubble; only explicit assistant-role
+        # messages can render AI metadata/actions. Unknown legacy records are plain text.
+        if not isinstance(m, dict):
+            continue
+        if m.get("role") == "user":
+            with st.chat_message("user"):
                 render_user_message(m)
-            else:
+        elif m.get("role") == "assistant":
+            with st.chat_message("assistant"):
                 render_answer(m, i)
+        else:
+            with st.chat_message("user"):
+                render_user_message({"role": "user", "content": str(m.get("content", ""))})
 
 if question:
     question = question.strip()
