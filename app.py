@@ -540,6 +540,12 @@ def reset_chat():
     ss.pop("flow", None)
 
 
+def rerender_transcript(question: str):
+    """Rebuild chat-message boundaries without accidentally processing a repeated submit."""
+    ss["_suppress_chat_input_once"] = question
+    st.rerun()
+
+
 def github_pr_panel():
     """Compact Arena-style repository/branch toolbar below the chat composer."""
     client_id = config.get_secret("GITHUB_CLIENT_ID")
@@ -988,7 +994,11 @@ with left:
         else:
             question = str(submitted).strip()
 
-
+# st.rerun() after saving a response may expose the same transient chat_input value once
+# more on some Streamlit versions. Consume it without adding a duplicate turn.
+rerun_question = ss.pop("_suppress_chat_input_once", None)
+if question and question == rerun_question:
+    question = ""
 
 # Muat pesan analisis otomatis setelah pengguna memilih repo + branch dan menekan tombol.
 auto_analysis_request = ss.get("gh_auto_analysis_pending")
@@ -1036,11 +1046,9 @@ if question:
                         "providers": [], "log": [], "flow": None}}
         ss.messages.append(msg)
         ss.n_requests += 1
-        with chat_box:
-            with st.chat_message("user"):
-                render_user_message({"role": "user", "content": question})
-            with st.chat_message("assistant"):
-                render_answer(msg, len(ss.messages) - 1)
+        # Render both role-tagged messages together on the next run so assistant controls
+        # can never be attached to the user's chat-message container.
+        rerender_transcript(question)
     elif len(question) > config.MAX_QUESTION_CHARS:
         with chat_box:
             st.error(f"Pertanyaan terlalu panjang (maks {config.MAX_QUESTION_CHARS} karakter).")
@@ -1095,9 +1103,9 @@ if question:
         }
         ss.messages.append(assistant_msg)
         live_status.empty()
-        with chat_box:
-            with st.chat_message("assistant"):
-                render_answer(assistant_msg, len(ss.messages) - 1)
+        # Rebuild the transcript from session state. Rendering the new assistant message
+        # in-place after a user bubble can make Streamlit reuse that bubble's DOM container.
+        rerender_transcript(question)
     elif not usable or (auto_analysis and demo):
         if auto_analysis:
             ss.pop("gh_auto_analysis_pending", None)
@@ -1178,32 +1186,35 @@ if question:
             draw(redraw_log=(action in ("log", "error", "final")))
 
         live_status.empty()
-        with chat_box:
-            with st.chat_message("assistant"):
-                if final:
-                    msg = {"role": "assistant", "content": final["answer"], "question": question,
-                           "meta": {"score": final["score"], "issues": final["issues"],
-                                    "verified": final["verified"], "sources": final["sources"],
-                                    "providers": final["providers"], "log": log,
-                                    "flow": flow.snapshot()}}
-                    ss.messages.append(msg)
-                    if auto_analysis and auto_analysis_request:
-                        ss.gh_repo_summary = final["answer"]
-                        ss.gh_repo_summary_target = {
-                            "repo": auto_analysis_request.get("repo"),
-                            "branch": auto_analysis_request.get("branch"),
-                        }
-                    render_answer(msg, len(ss.messages) - 1)
-                else:
+        if final:
+            msg = {"role": "assistant", "content": final["answer"], "question": question,
+                   "meta": {"score": final["score"], "issues": final["issues"],
+                            "verified": final["verified"], "sources": final["sources"],
+                            "providers": final["providers"], "log": log,
+                            "flow": flow.snapshot()}}
+            ss.messages.append(msg)
+            if auto_analysis and auto_analysis_request:
+                ss.gh_repo_summary = final["answer"]
+                ss.gh_repo_summary_target = {
+                    "repo": auto_analysis_request.get("repo"),
+                    "branch": auto_analysis_request.get("branch"),
+                }
+        else:
+            with chat_box:
+                with st.chat_message("assistant"):
                     st.markdown('<span class="aog-assistant-marker"></span>', unsafe_allow_html=True)
                     st.error(error or "Pipeline berhenti tanpa hasil.")
                     if getattr(run_router, "last_error", None):
                         with st.expander("Detail error provider"):
                             for n, e in run_router.last_error.items():
                                 st.text(f"{n}: {e}")
-                    ss.messages.pop()
-                    ss.n_requests -= 1
+            ss.messages.pop()
+            ss.n_requests -= 1
         draw()
+        if final:
+            # Re-render all messages from session state so each role gets its own
+            # Streamlit chat-message container and assistant-only actions stay separate.
+            rerender_transcript(question)
 
 # Ruang bawah tetap setelah semua bubble, supaya bubble terakhir tidak terpotong fade.
 with chat_box:
