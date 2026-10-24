@@ -340,9 +340,14 @@ if ss.agent_code_mode not in ("Seimbang", "Mendalam"):
 if ss.get("agent_code_mode_pick") not in (None, "Seimbang", "Mendalam"):
     ss.pop("agent_code_mode_pick", None)
 ss.setdefault("agent_code_mode_pick", ss.agent_code_mode)
-ss.setdefault("council_mode", "Seimbang")
-if ss.council_mode not in ("Seimbang", "Mendalam"):
-    ss.council_mode = "Seimbang"
+ss.setdefault("council_mode", "Normal")
+# Migrasikan pilihan lama agar sesi yang sudah terbuka tetap berada di mode terdekat.
+if ss.council_mode == "Seimbang":
+    ss.council_mode = "Normal"
+elif ss.council_mode == "Mendalam":
+    ss.council_mode = "Flash"
+elif ss.council_mode not in ("Normal", "Flash"):
+    ss.council_mode = "Normal"
 ss.setdefault("demo", not bool(router.active_providers()))
 ss.setdefault("active_topbar_page", "AOGx Council")
 
@@ -736,6 +741,8 @@ def render_answer(msg: dict, idx: int):
 
 
 MODE_HELP = {
+    "Normal": "1 putaran + verifikasi",
+    "Flash": "jawaban langsung tanpa putaran; GPT-OSS 120B diprioritaskan",
     "Cepat": "1 putaran, tanpa verifikasi",
     "Seimbang": "2 putaran + verifikasi",
     "Mendalam": "3 putaran + verifikasi ketat (kuota lebih banyak)",
@@ -1251,14 +1258,16 @@ with left:
                                           vertical_alignment="center")
                 with control_cols[0]:
                     st.button("Normal", key="council-mode-normal",
-                              type="primary" if mode == "Seimbang" else "secondary",
-                              use_container_width=True, help="Mode standar Council.",
-                              on_click=pick_council_mode, args=("Seimbang",))
+                              type="primary" if mode == "Normal" else "secondary",
+                              use_container_width=True,
+                              help="Satu putaran + verifikasi; GPT-OSS 120B diprioritaskan untuk perencanaan, riset, dan sintesis.",
+                              on_click=pick_council_mode, args=("Normal",))
                 with control_cols[1]:
-                    st.button("DeepThink", key="council-mode-deepthink", icon=":material/psychology:",
-                              type="primary" if mode == "Mendalam" else "secondary",
-                              use_container_width=True, help="Mode mendalam dengan lebih banyak putaran.",
-                              on_click=pick_council_mode, args=("Mendalam",))
+                    st.button("Flash", key="council-mode-flash", icon=":material/bolt:",
+                              type="primary" if mode == "Flash" else "secondary",
+                              use_container_width=True,
+                              help="Jawaban langsung tanpa putaran; Groq GPT-OSS 120B diprioritaskan.",
+                              on_click=pick_council_mode, args=("Flash",))
                 with control_cols[3]:
                     st.button("Voice", key="council-voice", icon=":material/graphic_eq:",
                               disabled=True, use_container_width=True,
@@ -1446,7 +1455,8 @@ if question:
         )
 
         log, final, error = [], None, None
-        for ev in pipeline.run(run_router, question, mode, history):
+        for ev in pipeline.run(run_router, question, mode, history,
+                               council_mode=not is_agent_code_page):
             action = flow.consume(ev)
             if ev["kind"] == "agent":
                 log.append({"role": ev["role"], "provider": ev["provider"],
