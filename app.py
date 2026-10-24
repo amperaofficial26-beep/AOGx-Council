@@ -72,18 +72,55 @@ html, body, [class*="css"] { font-family: "Inter", ui-sans-serif, system-ui, -ap
 .st-key-council-lower-panels .aog-log {
     max-height: 680px;
 }
-/* Turunkan composer dan toolbar repo sedikit agar keduanya lebih dekat ke dasar area chat. */
-[data-testid="stBottom"] {
-    transform: translateY(12px) !important;
+/* Chat input and repository controls form one Arena-style composer panel. */
+.st-key-chat-composer-shell {
+    width: 100% !important;
+    box-sizing: border-box !important;
+    position: sticky !important;
+    bottom: 0.6rem !important;
+    z-index: 20 !important;
+    margin-top: 0.45rem !important;
+    padding: 0.35rem 0.55rem 0.4rem !important;
+    border: 1px solid rgba(130, 145, 168, 0.26) !important;
+    border-radius: 18px !important;
+    background: rgba(13, 21, 35, 0.86) !important;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.16);
 }
-/* Compact Arena-style GitHub repo / branch selector below the chat composer. */
-.st-key-github-repo-toolbar {
+.st-key-chat-composer-shell [data-testid="stChatInput"] {
     position: relative !important;
-    top: 12px !important;
-    padding: 0.32rem 0.45rem !important;
-    border-radius: 16px !important;
-    border-color: rgba(130, 145, 168, 0.24) !important;
-    background: rgba(13, 21, 35, 0.72) !important;
+    isolation: auto !important;
+    overflow: visible !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    border-radius: 14px !important;
+    background: transparent !important;
+    box-shadow: none !important;
+}
+.st-key-chat-composer-shell [data-testid="stChatInput"]::before {
+    display: none !important;
+}
+.st-key-chat-composer-shell [data-testid="stChatInput"] > div {
+    background: transparent !important;
+    border: 0 !important;
+    border-radius: 14px !important;
+    box-shadow: none !important;
+}
+.st-key-chat-composer-shell [data-testid="stChatInput"] textarea {
+    min-height: 52px !important;
+    transform: none !important;
+}
+.st-key-chat-composer-shell .st-key-github-repo-toolbar {
+    position: static !important;
+    top: auto !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+    margin: 0.2rem 0 0 !important;
+    padding: 0.45rem 0 0 !important;
+    border: 0 !important;
+    border-top: 1px solid rgba(130, 145, 168, 0.16) !important;
+    border-radius: 0 !important;
+    background: transparent !important;
 }
 .st-key-github-repo-toolbar [data-testid="stSelectbox"] {
     margin-bottom: 0 !important;
@@ -547,7 +584,7 @@ def rerender_transcript(question: str):
 
 
 def github_pr_panel():
-    """Compact Arena-style repository/branch toolbar below the chat composer."""
+    """Render GitHub repository controls inside the shared chat composer shell."""
     client_id = config.get_secret("GITHUB_CLIENT_ID")
     client_secret = config.get_secret("GITHUB_CLIENT_SECRET")
     redirect_uri = config.get_secret("GITHUB_REDIRECT_URI")
@@ -607,9 +644,9 @@ def github_pr_panel():
     token = ss.get("gh_oauth_token", "")
     user = ss.get("gh_oauth_user")
 
-    # Compact disconnected state: one low-height bar, always at the bottom of the chat column.
+    # Compact disconnected state within the shared chat composer shell.
     if not (client_id and client_secret and redirect_uri):
-        with st.container(border=True, key="github-repo-toolbar"):
+        with st.container(border=False, key="github-repo-toolbar"):
             left_col, right_col = st.columns([2.6, 1.4], vertical_alignment="center")
             with left_col:
                 st.markdown("**GitHub** · belum dikonfigurasi")
@@ -628,7 +665,7 @@ def github_pr_panel():
             "state": state,
         })
         auth_url = f"https://github.com/login/oauth/authorize?{query}"
-        with st.container(border=True, key="github-repo-toolbar"):
+        with st.container(border=False, key="github-repo-toolbar"):
             connect_left, connect_right = st.columns([2.2, 1.0], vertical_alignment="center")
             with connect_left:
                 st.markdown("**GitHub** · akun belum terhubung")
@@ -645,7 +682,7 @@ def github_pr_panel():
                 ss.gh_repositories = client.list_user_repositories()
         repositories = [r for r in ss.gh_repositories if not r.get("disabled")]
         if not repositories:
-            with st.container(border=True, key="github-repo-toolbar"):
+            with st.container(border=False, key="github-repo-toolbar"):
                 st.caption(f"GitHub · @{user.get('login', 'terhubung')} · tidak ada repositori yang dapat diakses")
             return
 
@@ -673,7 +710,7 @@ def github_pr_panel():
         # Arena-inspired: repo and branch selectors share one horizontal, understated toolbar.
         load_repo = False
         disconnect = False
-        with st.container(border=True, key="github-repo-toolbar"):
+        with st.container(border=False, key="github-repo-toolbar"):
             repo_col, branch_col, analyze_col, settings_col = st.columns(
                 [1.9, 1.25, 0.62, 0.30], gap="small", vertical_alignment="center"
             )
@@ -973,26 +1010,29 @@ draw()
 CHAT_TAIL = '<div style="height:64px"></div>'
 
 with left:
+    # Reserve the conversation above a single, inline composer shell. Nesting chat_input
+    # makes Streamlit render it inline so the GitHub repo/branch toolbar can share its card.
     chat_box = st.container(height=440, border=False, key="chat-history")
-    # Native chat composer supports attachment cards (PDF/gambar) where available.
-    try:
-        submitted = st.chat_input(
-            "Kirim pesan ke AOGx Council…",
-            accept_file="multiple",
-            file_type=["pdf", "png", "jpg", "jpeg", "webp", "txt", "md"],
-        )
-    except TypeError:  # kompatibel dengan Streamlit lama
-        submitted = st.chat_input("Kirim pesan ke AOGx Council…")
-    question = ""
-    if submitted is not None:
-        if hasattr(submitted, "text"):
-            question = (submitted.text or "").strip()
-            attachments = list(submitted.files or [])
-            if attachments:
-                names = ", ".join(f.name for f in attachments)
-                question = (question + "\n\n" if question else "") + f"Lampiran: {names}"
-        else:
-            question = str(submitted).strip()
+    with st.container(key="chat-composer-shell"):
+        try:
+            submitted = st.chat_input(
+                "Kirim pesan ke AOGx Council…",
+                accept_file="multiple",
+                file_type=["pdf", "png", "jpg", "jpeg", "webp", "txt", "md"],
+            )
+        except TypeError:  # kompatibel dengan Streamlit lama
+            submitted = st.chat_input("Kirim pesan ke AOGx Council…")
+        question = ""
+        if submitted is not None:
+            if hasattr(submitted, "text"):
+                question = (submitted.text or "").strip()
+                attachments = list(submitted.files or [])
+                if attachments:
+                    names = ", ".join(f.name for f in attachments)
+                    question = (question + "\n\n" if question else "") + f"Lampiran: {names}"
+            else:
+                question = str(submitted).strip()
+        github_pr_panel()
 
 # st.rerun() after saving a response may expose the same transient chat_input value once
 # more on some Streamlit versions. Consume it without adding a duplicate turn.
@@ -1219,8 +1259,3 @@ if question:
 # Ruang bawah tetap setelah semua bubble, supaya bubble terakhir tidak terpotong fade.
 with chat_box:
     st.markdown(CHAT_TAIL, unsafe_allow_html=True)
-
-
-# Panel GitHub berada di bawah seluruh kolom chat, terpisah dari kontrol chat utama.
-with left:
-    github_pr_panel()
