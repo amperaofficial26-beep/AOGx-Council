@@ -96,6 +96,28 @@ class RouterTest(unittest.TestCase):
         router = Router()
         self.assertNotIn("xkiro", router.active_providers())  # model kosong = nonaktif
 
+    def test_council_roles_use_gpt_oss_120b_on_groq(self):
+        class ModelProvider(FakeProvider):
+            def chat(self, model, messages, temperature=0.7, max_tokens=1500):
+                self.model = model
+                return super().chat(model, messages, temperature, max_tokens)
+
+        router = self.make_router()
+        groq = ModelProvider("groq")
+        router.providers = {"groq": groq}
+        for role in ("council_orchestrator", "council_researcher", "council_synthesizer", "flash"):
+            with patch.dict(config.ROUTES, {role: ["groq"]}, clear=False):
+                router.chat(role, [{"role": "user", "content": "uji"}])
+            self.assertEqual(groq.model, "openai/gpt-oss-120b", role)
+
+        # Rute lama untuk Agent Code tetap mempertahankan model dan kedalaman semula.
+        self.assertEqual(config.ROLE_MODELS[("orchestrator", "groq")], "openai/gpt-oss-20b")
+        self.assertEqual(config.ROLE_MODELS[("researcher", "groq")], "openai/gpt-oss-20b")
+        self.assertEqual(config.MODES["Seimbang"],
+                         {"rounds": 2, "verify": True, "max_retries": 1})
+        self.assertEqual(config.MODES["Mendalam"],
+                         {"rounds": 3, "verify": True, "max_retries": 2})
+
 
 if __name__ == "__main__":
     unittest.main()

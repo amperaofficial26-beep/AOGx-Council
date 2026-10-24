@@ -30,7 +30,7 @@ NODES = {
 DEBATERS = ["analyst", "skeptic", "expert"]
 ROLE_TO_NODE = {"Orchestrator": "orchestrator", "Researcher": "researcher", "Analis": "analyst",
                 "Skeptis": "skeptic", "Pakar": "expert", "Penyusun": "synthesizer",
-                "Verifier": "verifier", "Council": "answer"}
+                "Verifier": "verifier", "Council": "answer", "Flash": "answer"}
 
 # (asal, tujuan, keluar_dari, masuk_ke, label, posisi_label)
 EDGES = [
@@ -94,7 +94,7 @@ class CouncilFlow:
                  rounds: int = 2, verify: bool = True, max_retries: int = 1):
         self.question = question
         self.mode_name = mode_name
-        self.rounds = max(1, rounds)
+        self.rounds = max(0, int(rounds or 0))
         self.verify = verify
         self.max_retries = max_retries
         self.states = {name: "off" for name in NODES}
@@ -247,7 +247,12 @@ class CouncilFlow:
     def _apply_status(self, text: str):
         self.stage_text = text
         t = text.lower()
-        if "menganalisis" in t:
+        if "flash" in t and "langsung" in t:
+            for node in ("orchestrator", "researcher", "analyst", "skeptic",
+                         "expert", "synthesizer", "verifier"):
+                self.skip(node, "mode Flash")
+            self.begin_stage(["answer"])
+        elif "menganalisis" in t:
             self.begin_stage(["orchestrator"])
         elif "mencari sumber" in t:
             self.begin_stage(["researcher"])
@@ -284,7 +289,8 @@ class CouncilFlow:
 
     def chips(self) -> list:
         return [("Mode", self.mode_name),
-                ("Putaran", f"{self.round_no or 1}/{self.rounds}"),
+                ("Putaran", "tanpa putaran" if self.rounds == 0 else
+                 f"{self.round_no or 1}/{self.rounds}"),
                 ("Revisi", str(self.attempt)),
                 ("Sumber", str(len(self.sources))),
                 ("Skor", "—" if self.score is None else f"{self.score:.0%}"),

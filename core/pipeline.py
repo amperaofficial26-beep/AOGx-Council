@@ -1,5 +1,5 @@
-"""Pipeline AOGx-Council: orchestrator -> riset -> diskusi -> sintesis -> verifikasi -> gerbang kualitas.
-run() adalah generator yang menghasilkan event supaya UI bisa menampilkan proses secara live."""
+"""Pipeline AOGx-Council: multi-agen normal atau jawaban langsung satu-panggilan Flash.
+run() menghasilkan event supaya UI bisa menampilkan proses secara live."""
 import json
 from concurrent.futures import ThreadPoolExecutor
 from typing import Callable, Dict, Generator
@@ -32,13 +32,44 @@ def _parallel(tasks: Dict[str, Callable]) -> Dict[str, object]:
     return out
 
 
-def run(router, question: str, mode_name: str, history: str = "") -> Generator[dict, None, None]:
+def run(router, question: str, mode_name: str, history: str = "",
+        council_mode: bool = False) -> Generator[dict, None, None]:
     mode = config.MODES[mode_name]
+    planning_role = "council_orchestrator" if council_mode else "orchestrator"
+    research_role = "council_researcher" if council_mode else "researcher"
+    synthesis_role = "council_synthesizer" if council_mode else "synthesizer"
     used = []  # provider yang terpakai, untuk transparansi
 
     try:
+        if mode_name == "Flash":
+            # Jalur langsung: satu panggilan model, tanpa planner, riset, debat, atau verifikasi.
+            yield _status("Flash menyusun jawaban langsung…")
+            prompt = (
+                "Kamu adalah AOGx Council dalam mode Flash. Jawab pertanyaan terbaru secara "
+                "langsung, akurat, dan ringkas dalam bahasa yang digunakan pengguna. Gunakan "
+                "riwayat hanya sebagai konteks; jangan mengaku telah melakukan riset atau "
+                "verifikasi eksternal. Jika informasi tidak pasti, nyatakan ketidakpastian."
+            )
+            user_content = (
+                f"Riwayat percakapan:\n{history[-6000:]}\n\nPertanyaan terbaru:\n{question}"
+                if history else question
+            )
+            answer, prov = router.chat(
+                "flash",
+                [{"role": "system", "content": prompt},
+                 {"role": "user", "content": user_content}],
+                temperature=0.3,
+                max_tokens=1200,
+            )
+            used.append(prov)
+            yield _agent("Jawaban langsung", "Flash", prov, answer)
+            yield {"kind": "final", "answer": answer, "score": None, "issues": [],
+                   "verified": False, "sources": [],
+                   "providers": sorted({u for u in used if u and u != "-"})}
+            return
+
         yield _status("Orchestrator menganalisis pertanyaan…")
-        plan, prov = orchestrator.plan(router, question, history)
+        plan, prov = orchestrator.plan(router, question, history, role=planning_role)
         used.append(prov)
         yield _agent("Perencanaan", "Orchestrator", prov, json.dumps(plan, ensure_ascii=False, indent=2))
 
@@ -46,7 +77,7 @@ def run(router, question: str, mode_name: str, history: str = "") -> Generator[d
         notes, sources = "", []
         if plan["needs_web"] and router.tavily.available():
             yield _status("Researcher mencari sumber web…")
-            notes, sources, prov = researcher.gather(router, plan, question)
+            notes, sources, prov = researcher.gather(router, plan, question, role=research_role)
             if notes:
                 used.append(prov)
                 yield _agent("Riset", "Researcher", prov, notes)
@@ -85,7 +116,8 @@ def run(router, question: str, mode_name: str, history: str = "") -> Generator[d
 
         # --- Lapis sintesis ---
         yield _status("Menyusun jawaban final…")
-        answer, prov = synthesizer.synthesize(router, question, notes, debate, history)
+        answer, prov = synthesizer.synthesize(router, question, notes, debate, history,
+                                              role=synthesis_role)
         used.append(prov)
         yield _agent("Sintesis", "Penyusun", prov, answer)
 
@@ -110,7 +142,8 @@ def run(router, question: str, mode_name: str, history: str = "") -> Generator[d
                     break
                 yield _status("Skor di bawah ambang, jawaban direvisi…")
                 answer, prov = synthesizer.synthesize(
-                    router, question, notes, debate, history, issues=issues, previous=answer)
+                    router, question, notes, debate, history, issues=issues, previous=answer,
+                    role=synthesis_role)
                 used.append(prov)
                 yield _agent("Revisi", "Penyusun", prov, answer)
 

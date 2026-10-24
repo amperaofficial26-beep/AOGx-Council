@@ -10,7 +10,7 @@ SYSTEM = f"""Kamu adalah Penyusun Jawaban Final. Gabungkan hasil diskusi tim men
 
 
 def synthesize(router, question: str, notes: str, debate: dict, history: str,
-               issues=None, previous: str = ""):
+               issues=None, previous: str = "", role: str = "synthesizer"):
     parts = [f"Pertanyaan:\n{clip(question, 3000)}"]
     if history:
         parts.append(f"Konteks percakapan sebelumnya:\n{history}")
@@ -22,5 +22,5 @@ def synthesize(router, question: str, notes: str, debate: dict, history: str,
     if issues:
         parts.append(f"Draf sebelumnya:\n{clip(previous, 3000)}\n\n"
                      "Pemeriksa menemukan masalah berikut, perbaiki semuanya:\n- " + "\n- ".join(issues))
-    return run_agent(router, "synthesizer", SYSTEM, "\n\n".join(parts),
+    return run_agent(router, role, SYSTEM, "\n\n".join(parts),
                      temperature=0.4, max_tokens=1600)

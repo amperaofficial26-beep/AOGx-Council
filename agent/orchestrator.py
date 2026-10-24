@@ -13,10 +13,10 @@ DEFAULT = {"category": "lainnya", "complexity": "medium", "needs_web": False,
            "search_queries": [], "focus_points": []}
 
 
-def plan(router, question: str, history: str):
+def plan(router, question: str, history: str, role: str = "orchestrator"):
     user = f"Riwayat singkat:\n{history or '(kosong)'}\n\nPertanyaan:\n{clip(question, 3000)}"
     try:
-        data, provider = run_json_agent(router, "orchestrator", SYSTEM, user,
+        data, provider = run_json_agent(router, role, SYSTEM, user,
                                         temperature=0.2, max_tokens=400)
     except Exception:
         return dict(DEFAULT), "-"

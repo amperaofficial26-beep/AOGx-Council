@@ -111,6 +111,17 @@ class StateTest(unittest.TestCase):
         flow.consume(st("Verifier memeriksa jawaban…"))
         self.assertEqual(flow.state("verifier"), "off")
 
+    def test_flash_flow_skips_rounds_and_tracks_direct_answer(self):
+        flow = CouncilFlow(mode_name="Flash", rounds=0, verify=False)
+        self.assertEqual(flow.rounds, 0)
+        flow.consume(st("Flash menyusun jawaban langsung…"))
+        self.assertEqual(flow.state("answer"), RUNNING)
+        for node in ("orchestrator", "researcher", *DEBATERS, "synthesizer", "verifier"):
+            self.assertEqual(flow.state(node), SKIPPED, node)
+        flow.consume(ag("Jawaban langsung", "Flash", "respons ringkas"))
+        self.assertEqual(flow.state("answer"), DONE)
+        self.assertEqual(dict(flow.chips())["Putaran"], "tanpa putaran")
+
 
 class RenderTest(unittest.TestCase):
     def test_agent_text_is_escaped(self):
