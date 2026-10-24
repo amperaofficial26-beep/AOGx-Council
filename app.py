@@ -101,6 +101,20 @@ html, body, [class*="css"] { font-family: "Inter", ui-sans-serif, system-ui, -ap
 .aog-council-hero img { display:block; width:88px; height:88px; object-fit:contain; }
 .aog-council-hero .aog-title { margin:0; font-size:clamp(2.4rem,4.5vw,3.4rem); }
 .st-key-council-chat-column { width:min(100%,1120px) !important; margin:0 auto !important; }
+.st-key-council-chat-column:not(:has(.aog-council-chat-started)) {
+    min-height:clamp(320px,calc(100vh - 280px),760px) !important;
+    display:flex !important; flex-direction:column !important; justify-content:center !important;
+}
+.st-key-council-chat-column:not(:has(.aog-council-chat-started)) .st-key-chat-history {
+    display:none !important;
+}
+.st-key-council-chat-column:not(:has(.aog-council-chat-started)) .st-key-chat-composer-shell {
+    position:static !important; bottom:auto !important; margin:0 auto !important; flex:0 0 auto !important;
+}
+.st-key-council-chat-column [data-testid="stElementContainer"]:has(.aog-council-chat-started) {
+    display:none !important;
+}
+.aog-council-chat-started { display:none !important; }
 .st-key-aog-topbar {
     width:100% !important; box-sizing:border-box !important; margin-bottom:1rem !important;
     padding:.55rem .7rem !important; border:1px solid rgba(104,128,165,.25) !important;
@@ -1174,6 +1188,8 @@ with left:
                     question = (question + "\n\n" if question else "") + f"Lampiran: {names}"
             else:
                 question = str(submitted).strip()
+        if not is_agent_code_page and (messages or question):
+            st.markdown('<span class="aog-council-chat-started"></span>', unsafe_allow_html=True)
         if is_agent_code_page:
             github_pr_panel()
 
