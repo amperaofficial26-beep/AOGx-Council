@@ -103,17 +103,44 @@ html, body, [class*="css"] { font-family: "Inter", ui-sans-serif, system-ui, -ap
 .aog-council-hero img { display:block; width:128px; height:128px; object-fit:contain; }
 .aog-council-hero .aog-title { margin:0; font-size:clamp(3rem,5.2vw,4.4rem); }
 .st-key-council-chat-column { width:min(100%,1120px) !important; margin:0 auto !important; }
-.st-key-council-chat-column .st-key-chat-composer-shell { isolation:isolate !important; }
+.st-key-council-chat-column .st-key-chat-composer-shell {
+    isolation:isolate !important; min-height:120px !important; padding:.45rem .75rem .55rem !important;
+    border:1px solid transparent !important; border-radius:24px !important;
+    background:linear-gradient(145deg,rgba(8,11,19,.97),rgba(11,14,23,.95)) padding-box,
+      linear-gradient(105deg,rgba(255,132,97,.78),rgba(142,105,255,.64) 48%,rgba(87,149,255,.8)) border-box !important;
+    box-shadow:0 12px 36px rgba(0,0,0,.22),inset 0 1px rgba(255,255,255,.035) !important;
+}
 .st-key-council-chat-column .st-key-chat-composer-shell::before {
-  content:""; position:absolute; z-index:-1; inset:-18px -32px; border-radius:999px;
-  background:radial-gradient(ellipse at center,rgba(56,231,211,.8) 0%,
-    rgba(111,120,255,.58) 42%,rgba(255,112,184,.38) 68%,transparent 100%);
+  content:""; position:absolute; z-index:-1; inset:-22px -42px; border-radius:999px;
+  background:
+    radial-gradient(ellipse at 10% 52%,rgba(255,105,72,.76) 0%,rgba(255,129,83,.3) 34%,transparent 68%),
+    radial-gradient(ellipse at 90% 48%,rgba(76,137,255,.82) 0%,rgba(110,82,255,.32) 36%,transparent 70%),
+    radial-gradient(ellipse at 50% 54%,rgba(173,77,255,.25) 0%,transparent 70%);
   filter:blur(34px) hue-rotate(0deg); opacity:.38; pointer-events:none;
-  animation:aogCouncilGlowColors 9s ease-in-out infinite;
+  animation:aogCouncilGlowColors 10s ease-in-out infinite;
 }
 @keyframes aogCouncilGlowColors {
   0%,100% { filter:blur(34px) hue-rotate(0deg); opacity:.34; }
-  50% { filter:blur(34px) hue-rotate(180deg); opacity:.5; }
+  33% { filter:blur(34px) hue-rotate(75deg); opacity:.42; }
+  66% { filter:blur(34px) hue-rotate(195deg); opacity:.46; }
+}
+.st-key-council-composer-controls { margin-top:.25rem !important; }
+.st-key-council-composer-controls [data-testid="stHorizontalBlock"] {
+    align-items:center !important; gap:.45rem !important;
+}
+.st-key-council-composer-controls [data-testid="stButton"] { margin:0 !important; }
+.st-key-council-composer-controls [data-testid="stButton"] button {
+    min-height:32px !important; border-radius:999px !important; padding:.25rem .65rem !important;
+    font-size:.74rem !important; white-space:nowrap !important;
+    background:rgba(255,255,255,.035) !important; border-color:rgba(145,158,182,.2) !important;
+    color:#aeb8c8 !important;
+}
+.st-key-council-composer-controls [data-testid="stButton"] button[kind="primary"] {
+    background:rgba(255,255,255,.095) !important; border-color:rgba(210,220,240,.34) !important;
+    color:#f2f5fb !important;
+}
+.st-key-council-composer-controls [data-testid="stButton"] button:disabled {
+    opacity:.56 !important; color:#8490a2 !important;
 }
 @media (prefers-reduced-motion: reduce) {
   .st-key-council-chat-column .st-key-chat-composer-shell::before {
@@ -313,6 +340,9 @@ if ss.agent_code_mode not in ("Seimbang", "Mendalam"):
 if ss.get("agent_code_mode_pick") not in (None, "Seimbang", "Mendalam"):
     ss.pop("agent_code_mode_pick", None)
 ss.setdefault("agent_code_mode_pick", ss.agent_code_mode)
+ss.setdefault("council_mode", "Seimbang")
+if ss.council_mode not in ("Seimbang", "Mendalam"):
+    ss.council_mode = "Seimbang"
 ss.setdefault("demo", not bool(router.active_providers()))
 ss.setdefault("active_topbar_page", "AOGx Council")
 
@@ -719,6 +749,10 @@ def mode_label(name: str) -> str:
 
 def pick_mode():
     ss.agent_code_mode = ss.agent_code_mode_pick
+
+
+def pick_council_mode(mode: str):
+    ss.council_mode = mode
 
 
 def reset_chat(messages_key: str, request_count_key: str, flow_key: str):
@@ -1133,7 +1167,7 @@ else:
     active_messages_key = "messages"
     active_request_count_key = "n_requests"
     active_flow_key = "flow"
-    mode = "Seimbang"
+    mode = ss.council_mode
     render_council_hero()
     left = st.container(key="council-chat-column")
 
@@ -1211,6 +1245,24 @@ with left:
                 question = str(submitted).strip()
         if not is_agent_code_page and (messages or question):
             st.markdown('<span class="aog-council-chat-started"></span>', unsafe_allow_html=True)
+        if not is_agent_code_page:
+            with st.container(key="council-composer-controls"):
+                control_cols = st.columns([1.0, 1.35, 5.4, 1.2], gap="small",
+                                          vertical_alignment="center")
+                with control_cols[0]:
+                    st.button("Normal", key="council-mode-normal",
+                              type="primary" if mode == "Seimbang" else "secondary",
+                              use_container_width=True, help="Mode standar Council.",
+                              on_click=pick_council_mode, args=("Seimbang",))
+                with control_cols[1]:
+                    st.button("DeepThink", key="council-mode-deepthink", icon=":material/psychology:",
+                              type="primary" if mode == "Mendalam" else "secondary",
+                              use_container_width=True, help="Mode mendalam dengan lebih banyak putaran.",
+                              on_click=pick_council_mode, args=("Mendalam",))
+                with control_cols[3]:
+                    st.button("Voice", key="council-voice", icon=":material/graphic_eq:",
+                              disabled=True, use_container_width=True,
+                              help="Input suara belum tersedia.")
         if is_agent_code_page:
             github_pr_panel()
     if not is_agent_code_page:
