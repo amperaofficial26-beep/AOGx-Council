@@ -89,10 +89,10 @@ ROUTES = {
     "expert":       ["openrouter", "requesty", "xkiro", "groq"],
     "verifier":     ["aion", "xkiro", "gemini", "openrouter"],
     "synthesizer":  ["gemini", "openrouter", "groq"],
-    "council_orchestrator": ["groq", "openrouter", "gemini"],
-    "council_researcher":   ["groq", "openrouter", "gemini"],
-    "council_synthesizer":  ["groq", "gemini", "openrouter"],
-    "flash":                ["groq", "openrouter", "gemini"],
+    "council_orchestrator": ["groq", "openrouter", "gemini", "requesty", "aion", "xkiro"],
+    "council_researcher":   ["groq", "openrouter", "gemini", "requesty", "aion", "xkiro"],
+    "council_synthesizer":  ["groq", "gemini", "openrouter", "requesty", "aion", "xkiro"],
+    "flash":                ["groq", "openrouter", "gemini", "requesty", "aion", "xkiro"],
 }
 
 # Mode pipeline: putaran diskusi, verifikasi, dan batas percobaan revisi.
