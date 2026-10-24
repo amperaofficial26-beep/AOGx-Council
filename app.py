@@ -328,6 +328,7 @@ def get_router() -> Router:
 
 
 router = get_router()
+active_provider_names = router.active_providers()
 ss = st.session_state
 # AOGx Council and AOGx Agent Code keep independent chat histories and request limits.
 ss.setdefault("messages", [])
@@ -348,7 +349,8 @@ elif ss.council_mode == "Mendalam":
     ss.council_mode = "Flash"
 elif ss.council_mode not in ("Normal", "Flash"):
     ss.council_mode = "Normal"
-ss.setdefault("demo", not bool(router.active_providers()))
+# Re-evaluate current credentials each rerun instead of preserving a stale demo flag.
+ss.demo = not bool(active_provider_names)
 ss.setdefault("active_topbar_page", "AOGx Council")
 
 
@@ -1137,7 +1139,7 @@ def github_pr_panel():
 
 
 demo = ss.demo
-active = [] if demo else router.active_providers()
+active = [] if demo else active_provider_names
 
 # The Council page is the minimal chat; Agent Code receives the full Council workspace.
 render_topbar()
