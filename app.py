@@ -133,9 +133,9 @@ body:has(.aog-council-chat-started) .aog-council-hero {
 /* Let the scroll window extend behind the composer without pushing the composer down. */
 .st-key-council-chat-column .st-key-chat-history {
   margin-bottom:-130px !important;
-  -webkit-mask-image:linear-gradient(to bottom,transparent 0,black 64px,
+  -webkit-mask-image:linear-gradient(to bottom,transparent 0,black 20px,
     black calc(100% - 90px),transparent 100%) !important;
-  mask-image:linear-gradient(to bottom,transparent 0,black 64px,
+  mask-image:linear-gradient(to bottom,transparent 0,black 20px,
     black calc(100% - 90px),transparent 100%) !important;
 }
 @media (min-height:1100px) {
