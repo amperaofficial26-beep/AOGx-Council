@@ -59,10 +59,17 @@ class Router:
 
     # ---- panggilan utama ----
     def chat(self, role: str, messages: List[Message], temperature: float = 0.7,
-             max_tokens: int = 1500) -> Tuple[str, str]:
-        """Jalankan chat sesuai rute peran. Return (teks, nama_provider_yang_dipakai)."""
+             max_tokens: int = 1500, exclude_providers: List[str] | None = None) -> Tuple[str, str]:
+        """Jalankan chat sesuai rute peran. Return (teks, nama_provider_yang_dipakai).
+
+        ``exclude_providers`` lets the UI explicitly retry through the remaining fallback
+        route after an answer has already used a set of providers.
+        """
         errors = []
+        excluded = set(exclude_providers or [])
         for name in config.ROUTES.get(role, []):
+            if name in excluded:
+                continue
             provider = self.providers.get(name)
             if not self._usable(name):
                 continue

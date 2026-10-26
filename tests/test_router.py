@@ -44,6 +44,20 @@ class RouterTest(unittest.TestCase):
             text, used = router.chat("orchestrator", [{"role": "user", "content": "x"}])
         self.assertEqual((text, used), ("halo", "gemini"))
 
+    def test_manual_retry_can_skip_previously_used_provider(self):
+        router = self.make_router()
+        groq = FakeProvider("groq", reply="jawaban awal")
+        gemini = FakeProvider("gemini", reply="jawaban fallback")
+        router.providers = {"groq": groq, "gemini": gemini}
+        with patch.dict(config.ROUTES, {"orchestrator": ["groq", "gemini"]}, clear=False):
+            answer, provider = router.chat(
+                "orchestrator", [{"role": "user", "content": "x"}],
+                exclude_providers=["groq"],
+            )
+        self.assertEqual((answer, provider), ("jawaban fallback", "gemini"))
+        self.assertEqual(groq.calls, 0)
+        self.assertEqual(gemini.calls, 1)
+
     def test_all_failed_raises_with_role(self):
         router = self.make_router()
         router.providers = {"groq": FakeProvider("groq", error="down", status=500)}
