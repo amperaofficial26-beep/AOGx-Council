@@ -86,6 +86,27 @@ st.markdown("""
 <style>
 .block-container { padding-top: 3px !important; padding-bottom: 1rem; max-width: 1840px; }
 [data-testid="stAppViewBlockContainer"] { padding-top: 0 !important; }
+/* Keep the Council desktop composition fixed at the 1840px wide layout.
+   Browser zoom still scales the canvas; narrow viewports scroll instead of reflowing it. */
+@media (hover: hover) and (pointer: fine) {
+  body:has(.st-key-council-chat-column),
+  body:has(.st-key-council-chat-column) .stApp,
+  body:has(.st-key-council-chat-column) [data-testid="stAppViewContainer"] {
+    min-width:1840px !important;
+  }
+  body:has(.st-key-council-chat-column) .block-container {
+    width:1840px !important; min-width:1840px !important;
+    max-width:1840px !important; box-sizing:border-box !important;
+  }
+  .st-key-council-chat-column { width:1120px !important; max-width:1120px !important; }
+  .aog-council-hero .aog-title { font-size:4.4rem !important; }
+  .st-key-council-chat-column .st-key-chat-history,
+  .st-key-council-chat-column .st-key-chat-history [data-testid="stVerticalBlockBorderWrapper"] {
+    height:870px !important; max-height:870px !important;
+  }
+  .st-key-council-chat-column .st-key-chat-history { margin-bottom:-130px !important; }
+  .aog-council-empty-spacer { height:260px !important; }
+}
 #MainMenu, footer { visibility: hidden; }
 header[data-testid="stHeader"] { display:none !important; height:0 !important; }
 [data-testid="stSidebar"], [data-testid="stSidebarCollapsedControl"],
@@ -133,9 +154,9 @@ body:has(.aog-council-chat-started) .aog-council-hero {
 /* Let the scroll window extend behind the composer without pushing the composer down. */
 .st-key-council-chat-column .st-key-chat-history {
   margin-bottom:-130px !important;
-  -webkit-mask-image:linear-gradient(to bottom,transparent 0,black 10px,
+  -webkit-mask-image:linear-gradient(to bottom,transparent 0,black 48px,
     black calc(100% - 90px),transparent 100%) !important;
-  mask-image:linear-gradient(to bottom,transparent 0,black 10px,
+  mask-image:linear-gradient(to bottom,transparent 0,black 48px,
     black calc(100% - 90px),transparent 100%) !important;
 }
 @media (min-height:1100px) {
