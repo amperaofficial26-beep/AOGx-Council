@@ -466,11 +466,12 @@ if access_code and not st.session_state.get("auth"):
 
 
 @st.cache_resource
-def get_router() -> Router:
+def get_router(cache_version: int = 2) -> Router:
+    # Bump when Router behavior changes so a hot-reloaded app cannot reuse a stale instance.
     return Router()
 
 
-router = get_router()
+router = get_router(cache_version=2)
 active_provider_names = router.active_providers()
 ss = st.session_state
 # AOGx Council and AOGx Agent Code keep independent chat histories and request limits.
