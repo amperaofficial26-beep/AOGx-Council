@@ -717,10 +717,9 @@ def render_copy_icon(text: str, title: str, key: str):
   const key="{widget_id}";
   const encoded="{encoded}";
   const content=new TextDecoder("utf-8").decode(Uint8Array.from(atob(encoded),c=>c.charCodeAt(0)));
-  const registry=window.__aogxCopyRegistry||(window.__aogxCopyRegistry={{contents:{{}},listenerInstalled:false}});
-  registry.contents[key]=content;
-  if(registry.listenerInstalled)return;
-  registry.listenerInstalled=true;
+  const root=document.getElementById(key);
+  const button=root&&root.querySelector("button[data-aog-copy-key]");
+  if(!button)return;
   const copyIcon=`{_COPY_ICON_MARKUP}`;
   const checkIcon=`{_CHECK_ICON_MARKUP}`;
   function copyWindow(){{
@@ -774,20 +773,14 @@ def render_copy_icon(text: str, title: str, key: str):
     window.setTimeout(()=>{{button.title=title}},1800);
     showCopyToast("Gagal menyalin. Coba lagi.",true);
   }}
-  document.addEventListener("click",(event)=>{{
-    const target=event.target instanceof Element?event.target:event.target&&event.target.parentElement;
-    const path=typeof event.composedPath==="function"?event.composedPath():[];
-    const button=path.find(node=>node instanceof Element&&node.matches("button[data-aog-copy-key]"))
-      ||(target&&target.closest("button[data-aog-copy-key]"));
-    if(!button)return;
-    const copyKey=button.getAttribute("data-aog-copy-key");
-    const text=registry.contents[copyKey];
-    if(typeof text!=="string")return;
-
+  // Bind to this exact button rather than delegating globally. Streamlit renders
+  // each st.html block independently; a per-button listener avoids stale shared
+  // registry state after reruns and still receives clicks on the nested icon span.
+  button.addEventListener("click",()=>{{
     // Try the synchronous, user-gesture clipboard fallback first; an await here can
     // consume the browser's transient activation before execCommand is attempted.
     try{{
-      legacyCopy(text);
+      legacyCopy(content);
       showCopied(button);
       return;
     }}catch(_legacyError){{}}
@@ -796,12 +789,12 @@ def render_copy_icon(text: str, title: str, key: str):
     const clipboard=targetWindow.navigator&&targetWindow.navigator.clipboard;
     if(!clipboard||!targetWindow.isSecureContext){{showCopyFailed(button);return;}}
     try{{
-      Promise.resolve(clipboard.writeText(text)).then(
+      Promise.resolve(clipboard.writeText(content)).then(
         ()=>showCopied(button),
         ()=>showCopyFailed(button)
       );
     }}catch(_clipboardError){{showCopyFailed(button);}}
-  }},true);
+  }});
 }})();
 </script></div>"""
     if hasattr(st, "html"):
