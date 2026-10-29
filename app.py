@@ -5,7 +5,7 @@ AOGx Agent Code menampilkan workspace chat dan mesin proses; AOGx Council berisi
 import base64
 import difflib
 import hmac
-import inspect
+import json
 import re
 import secrets
 from pathlib import Path
@@ -24,14 +24,25 @@ from providers.github import (
 from ui import machine, neural, theme, thinking
 from ui.flow import CouncilFlow
 
-CHAT_ASSISTANT_AVATAR = str(Path(__file__).resolve().parent / "ui" / "assets" / "aogx-mark.png")
-CHAT_ASSISTANT_AVATAR_DATA = base64.b64encode(Path(CHAT_ASSISTANT_AVATAR).read_bytes()).decode("ascii")
+_AVATAR_PATH = Path(__file__).resolve().parent / "ui" / "assets" / "aogx-mark.png"
+try:
+    CHAT_ASSISTANT_AVATAR = str(_AVATAR_PATH)
+    CHAT_ASSISTANT_AVATAR_DATA = base64.b64encode(_AVATAR_PATH.read_bytes()).decode("ascii")
+except OSError:
+    # Aset logo hilang: aplikasi tetap jalan dengan ikon Material sebagai pengganti.
+    CHAT_ASSISTANT_AVATAR = ":material/hub:"
+    CHAT_ASSISTANT_AVATAR_DATA = ""
+
+
+def _logo_img() -> str:
+    if not CHAT_ASSISTANT_AVATAR_DATA:
+        return ""
+    return f'<img src="data:image/png;base64,{CHAT_ASSISTANT_AVATAR_DATA}" alt="Logo AOGx">'
 
 
 def render_brand_header():
-    logo = f"data:image/png;base64,{CHAT_ASSISTANT_AVATAR_DATA}"
     st.markdown(
-        f'<div class="aog-brand-header"><img src="{logo}" alt="Logo AOGx">'
+        f'<div class="aog-brand-header">{_logo_img()}'
         '<div class="aog-title">AOGx Council</div></div>',
         unsafe_allow_html=True,
     )
@@ -39,9 +50,8 @@ def render_brand_header():
 
 def render_council_hero():
     """Large centered brand mark shown on the minimal Council chat page."""
-    logo = f"data:image/png;base64,{CHAT_ASSISTANT_AVATAR_DATA}"
     st.markdown(
-        f'<div class="aog-council-hero"><img src="{logo}" alt="Logo AOGx">'
+        f'<div class="aog-council-hero">{_logo_img()}'
         '<div class="aog-title">AOGx Council</div></div>',
         unsafe_allow_html=True,
     )
@@ -510,8 +520,10 @@ ss.setdefault("active_topbar_page", "AOGx Council")
 def history_text(messages, pairs: int = 3) -> str:
     lines = []
     for m in messages[-pairs * 2:]:
-        who = "Pengguna" if m["role"] == "user" else "Asisten"
-        lines.append(f"{who}: {clip(m['content'], 600)}")
+        if not isinstance(m, dict):
+            continue
+        who = "Pengguna" if m.get("role") == "user" else "Asisten"
+        lines.append(f"{who}: {clip(str(m.get('content', '')), 600)}")
     return "\n".join(lines)
 
 
@@ -687,130 +699,146 @@ def render_user_message(msg: dict):
     st.markdown(str(msg.get("content", "")))
 
 
-_COPY_ICON_MARKUP = '<span class="aog-copy-glyph" aria-hidden="true"></span>'
-_CHECK_ICON_MARKUP = '<span class="aog-check-glyph" aria-hidden="true"></span>'
+# Skrip tombol salin. Dijalankan di dalam iframe components.html (selalu mengeksekusi
+# <script>, tidak seperti st.html yang bisa memuat skrip sebelum tombolnya ada di DOM).
+# Urutan percobaan: (1) textarea di dokumen iframe + execCommand, (2) textarea di dokumen
+# induk, (3) navigator.clipboard. Urutan ini menjaga "user gesture" tetap sinkron.
+_COPY_BUTTON_TEMPLATE = """<!doctype html>
+<html><head><meta charset="utf-8"><style>
+html,body{margin:0;padding:0;background:transparent;overflow:hidden}
+#cp{display:grid;place-items:center;width:30px;height:30px;margin:1px;padding:0;border:0;
+  border-radius:8px;background:transparent;color:#94a3b8;cursor:pointer;transition:background .12s,color .12s}
+#cp:hover{background:rgba(148,163,184,.13);color:#eef2ff}
+#cp:focus-visible{outline:2px solid rgba(56,231,211,.6);outline-offset:1px}
+#cp svg{display:block;pointer-events:none}
+</style></head><body>
+<button id="cp" type="button"></button>
+<script>
+(function () {
+  var TITLE = __TITLE__;
+  var OK_MESSAGE = __OK_MESSAGE__;
+  var content = new TextDecoder("utf-8").decode(
+    Uint8Array.from(atob(__ENCODED__), function (c) { return c.charCodeAt(0); }));
+  var btn = document.getElementById("cp");
+  var SVG_OPEN = '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" '
+    + 'stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">';
+  var COPY_ICON = SVG_OPEN + '<rect x="9" y="9" width="13" height="13" rx="2"></rect>'
+    + '<path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>';
+  var CHECK_ICON = SVG_OPEN + '<polyline points="20 6 9 17 4 12"></polyline></svg>';
+
+  function setIdle() {
+    btn.innerHTML = COPY_ICON;
+    btn.style.color = "";
+    btn.title = TITLE;
+    btn.setAttribute("aria-label", TITLE);
+  }
+  setIdle();
+
+  function copyViaTextarea(doc, text) {
+    var ta = doc.createElement("textarea");
+    ta.value = text;
+    ta.setAttribute("readonly", "");
+    ta.setAttribute("aria-hidden", "true");
+    ta.style.cssText = "position:fixed;top:0;left:0;width:1px;height:1px;opacity:0;pointer-events:none;";
+    doc.body.appendChild(ta);
+    var ok = false;
+    try {
+      ta.focus();
+      ta.select();
+      ta.setSelectionRange(0, ta.value.length);
+      ok = doc.execCommand("copy");
+    } catch (e) {
+      ok = false;
+    }
+    doc.body.removeChild(ta);
+    return ok;
+  }
+
+  function parentWindow() {
+    try {
+      if (window.parent && window.parent !== window && window.parent.document.body) {
+        return window.parent;
+      }
+    } catch (e) { /* lintas-origin: tidak boleh diakses */ }
+    return null;
+  }
+
+  function toast(message, failed) {
+    var pw = parentWindow();
+    if (!pw) return;
+    var doc = pw.document;
+    var el = doc.getElementById("aogx-copy-toast");
+    if (!el) {
+      el = doc.createElement("div");
+      el.id = "aogx-copy-toast";
+      el.setAttribute("role", "status");
+      el.setAttribute("aria-live", "polite");
+      el.style.cssText = "position:fixed;top:20px;right:20px;z-index:2147483647;"
+        + "max-width:min(420px,calc(100vw - 40px));padding:11px 16px;border-radius:12px;"
+        + "font:600 14px/1.4 system-ui,sans-serif;background:rgba(8,27,29,.97);"
+        + "box-shadow:0 8px 24px rgba(0,0,0,.35);opacity:0;transition:opacity .18s ease;"
+        + "pointer-events:none;";
+      doc.body.appendChild(el);
+    }
+    el.textContent = message;
+    el.style.border = failed ? "1px solid rgba(248,113,113,.55)" : "1px solid rgba(52,211,153,.42)";
+    el.style.color = failed ? "#fee2e2" : "#e8fff6";
+    el.style.opacity = "1";
+    if (el.__aogxTimer) pw.clearTimeout(el.__aogxTimer);
+    el.__aogxTimer = pw.setTimeout(function () { el.style.opacity = "0"; }, 1900);
+  }
+
+  function finish(ok) {
+    if (ok) {
+      btn.innerHTML = CHECK_ICON;
+      btn.style.color = "#34d399";
+      btn.title = "Tersalin";
+      btn.setAttribute("aria-label", "Tersalin");
+      toast(OK_MESSAGE, false);
+    } else {
+      btn.style.color = "#f87171";
+      btn.title = "Gagal menyalin";
+      btn.setAttribute("aria-label", "Gagal menyalin");
+      toast("Gagal menyalin. Coba lagi.", true);
+    }
+    window.setTimeout(setIdle, 1400);
+  }
+
+  btn.addEventListener("click", function () {
+    // Cara sinkron lebih dulu agar izin klik pengguna belum hangus.
+    if (copyViaTextarea(document, content)) { finish(true); return; }
+    var pw = parentWindow();
+    if (pw && copyViaTextarea(pw.document, content)) { finish(true); return; }
+    var clip = (pw && pw.navigator && pw.navigator.clipboard) || navigator.clipboard;
+    if (clip && clip.writeText) {
+      clip.writeText(content).then(function () { finish(true); }, function () { finish(false); });
+    } else {
+      finish(false);
+    }
+  });
+})();
+</script></body></html>"""
 
 
 def render_copy_icon(text: str, title: str, key: str):
-    """Render a compact Material-style copy icon with clipboard access."""
-    encoded = base64.b64encode(str(text).encode("utf-8")).decode("ascii")
-    widget_id = "aog-copy-" + re.sub(r"[^a-zA-Z0-9_-]", "-", key)
-    html = f"""<div id="{widget_id}" style="width:32px;height:32px;overflow:hidden">
-<style>
-#{widget_id}{{display:flex;align-items:center;justify-content:center;width:32px;height:32px}}
-#{widget_id} button{{display:grid;place-items:center;width:30px;height:30px;padding:0;border:0;
-  border-radius:8px;background:transparent;color:#94a3b8;cursor:pointer}}
-#{widget_id} button:hover{{background:rgba(148,163,184,.13);color:#eef2ff}}
-#{widget_id} .aog-copy-glyph,#{widget_id} .aog-check-glyph{{position:relative;display:block;
-  width:17px;height:17px;color:inherit}}
-#{widget_id} .aog-copy-glyph::before,#{widget_id} .aog-copy-glyph::after{{content:"";position:absolute;
-  width:8px;height:10px;border:1.6px solid currentColor;border-radius:1.5px}}
-#{widget_id} .aog-copy-glyph::before{{left:6px;top:2px}}
-#{widget_id} .aog-copy-glyph::after{{left:3px;top:5px}}
-#{widget_id} .aog-check-glyph::before{{content:"";position:absolute;left:4px;top:1px;
-  width:7px;height:12px;border-right:2px solid currentColor;border-bottom:2px solid currentColor;
-  transform:rotate(45deg)}}
-</style>
-<button type="button" data-aog-copy-key="{widget_id}" data-aog-copy-title="{title}"
-        title="{title}" aria-label="{title}">{_COPY_ICON_MARKUP}</button>
-<script>
-(()=>{{
-  const key="{widget_id}";
-  const encoded="{encoded}";
-  const content=new TextDecoder("utf-8").decode(Uint8Array.from(atob(encoded),c=>c.charCodeAt(0)));
-  const root=document.getElementById(key);
-  const button=root&&root.querySelector("button[data-aog-copy-key]");
-  if(!button)return;
-  const copyIcon=`{_COPY_ICON_MARKUP}`;
-  const checkIcon=`{_CHECK_ICON_MARKUP}`;
-  function copyWindow(){{
-    try{{
-      if(window.parent&&window.parent!==window&&window.parent.document.body)return window.parent;
-    }}catch(_error){{}}
-    return window;
-  }}
-  function legacyCopy(text){{
-    const target=copyWindow();
-    const targetDocument=target.document;
-    const field=targetDocument.createElement("textarea");
-    field.value=text;field.setAttribute("readonly","");field.setAttribute("aria-hidden","true");
-    field.style.position="fixed";field.style.top="0";field.style.left="-10000px";field.style.opacity="0";
-    targetDocument.body.appendChild(field);field.focus();field.select();
-    field.setSelectionRange(0,field.value.length);
-    let ok=false;
-    try{{ok=targetDocument.execCommand("copy");}}finally{{field.remove();}}
-    if(!ok)throw new Error("Clipboard copy failed");
-  }}
-  function showCopyToast(message, failed=false){{
-    const target=copyWindow();
-    const doc=target.document;
-    let toast=doc.getElementById("aogx-copy-toast");
-    if(!toast){{
-      toast=doc.createElement("div");
-      toast.id="aogx-copy-toast";toast.setAttribute("role","status");toast.setAttribute("aria-live","polite");
-      toast.style.cssText="position:fixed;top:20px;right:20px;z-index:2147483647;max-width:min(420px,calc(100vw - 40px));"
-        +"padding:11px 16px;border-radius:12px;font:600 14px/1.4 system-ui,sans-serif;"
-        +"color:#e8fff6;background:rgba(8,27,29,.97);border:1px solid rgba(52,211,153,.42);"
-        +"box-shadow:0 8px 24px rgba(0,0,0,.35);opacity:0;transition:opacity .18s ease;pointer-events:none";
-      doc.body.appendChild(toast);
-    }}
-    toast.textContent=message;
-    toast.style.borderColor=failed?"rgba(248,113,113,.55)":"rgba(52,211,153,.42)";
-    toast.style.color=failed?"#fee2e2":"#e8fff6";
-    toast.style.opacity="1";
-    if(toast.__aogxTimer)target.clearTimeout(toast.__aogxTimer);
-    toast.__aogxTimer=target.setTimeout(()=>{{toast.style.opacity="0"}},1900);
-  }}
-  function showCopied(button){{
-    const title=button.getAttribute("data-aog-copy-title")||"Salin";
-    const message=title==="Salin pertanyaan"?"Pertanyaan berhasil disalin.":"Jawaban berhasil disalin.";
-    button.innerHTML=checkIcon;button.title="Tersalin";button.setAttribute("aria-label","Tersalin");
-    window.setTimeout(()=>{{button.innerHTML=copyIcon;button.title=title;button.setAttribute("aria-label",title)}},1000);
-    showCopyToast(message);
-  }}
-  function showCopyFailed(button){{
-    const title=button.getAttribute("data-aog-copy-title")||"Salin";
-    button.title="Gagal menyalin";
-    window.setTimeout(()=>{{button.title=title}},1800);
-    showCopyToast("Gagal menyalin. Coba lagi.",true);
-  }}
-  // Bind to this exact button rather than delegating globally. Streamlit renders
-  // each st.html block independently; a per-button listener avoids stale shared
-  // registry state after reruns and still receives clicks on the nested icon span.
-  button.addEventListener("click",()=>{{
-    // Try the synchronous, user-gesture clipboard fallback first; an await here can
-    // consume the browser's transient activation before execCommand is attempted.
-    try{{
-      legacyCopy(content);
-      showCopied(button);
-      return;
-    }}catch(_legacyError){{}}
+    """Render a compact copy icon that really writes `text` to the user's clipboard.
 
-    const targetWindow=copyWindow();
-    const clipboard=targetWindow.navigator&&targetWindow.navigator.clipboard;
-    if(!clipboard||!targetWindow.isSecureContext){{showCopyFailed(button);return;}}
-    try{{
-      Promise.resolve(clipboard.writeText(content)).then(
-        ()=>showCopied(button),
-        ()=>showCopyFailed(button)
-      );
-    }}catch(_clipboardError){{showCopyFailed(button);}}
-  }});
-}})();
-</script></div>"""
-    html_supports_javascript = False
-    if hasattr(st, "html"):
-        try:
-            html_supports_javascript = "unsafe_allow_javascript" in inspect.signature(st.html).parameters
-        except (TypeError, ValueError):
-            pass
-    if html_supports_javascript:
-        st.html(html, width=32, unsafe_allow_javascript=True)
-    else:  # Older st.html versions sanitize scripts; use the JavaScript-enabled component iframe.
-        document = ("<!doctype html><html><head><style>html,body{margin:0;padding:0;"
-                    "background:transparent;overflow:hidden}</style></head><body>" + html
-                    + "</body></html>")
-        components.html(document, width=32, height=32, scrolling=False)
+    Streamlit tidak bisa mengakses clipboard dari Python, jadi tombol dibuat sebagai
+    komponen HTML kecil (iframe 32x32) berisi JavaScript. `key` dipakai untuk membedakan
+    komponen antarpesan.
+    """
+    encoded = base64.b64encode(str(text).encode("utf-8")).decode("ascii")
+    ok_message = ("Pertanyaan berhasil disalin." if "pertanyaan" in str(title).lower()
+                  else "Jawaban berhasil disalin.")
+    html = (_COPY_BUTTON_TEMPLATE
+            .replace("__ENCODED__", json.dumps(encoded))
+            .replace("__TITLE__", json.dumps(str(title)))
+            .replace("__OK_MESSAGE__", json.dumps(ok_message)))
+    # Tanda unik per pesan di dalam HTML agar Streamlit tidak menggabungkan iframe yang
+    # isinya mirip saat urutan pesan berubah (mis. setelah edit/fallback).
+    safe_key = re.sub(r"[^a-zA-Z0-9_-]", "-", str(key))
+    html = html.replace("<!doctype html>", f"<!doctype html><!-- {safe_key} -->", 1)
+    components.html(html, width=32, height=34, scrolling=False)
 
 
 def start_council_edit(index: int, content: str):
@@ -848,6 +876,7 @@ def submit_council_edit(index: int):
     ss.pop("council_editing_index", None)
     ss.pop("council_edit_error_index", None)
     ss.pop("council_edit_error", None)
+    ss.pop(f"council_edit_draft_{index}", None)
 
 
 def request_council_fallback(index: int, question: str, used_providers: list):
@@ -880,14 +909,14 @@ def set_council_feedback(index: int, rating: str):
     meta = dict(message.get("meta") or {}) if isinstance(message.get("meta"), dict) else {}
     if meta.get("feedback") == rating:
         meta.pop("feedback", None)
-        notice, icon = "Penilaian dibatalkan.", "↩️"
+        notice, icon = "Penilaian dibatalkan.", ":material/undo:"
     else:
         meta["feedback"] = rating
         if rating == "good":
-            notice, icon = "Terima kasih atas respons baikmu!", "✅"
+            notice, icon = "Terima kasih atas respons baikmu!", ":material/check_circle:"
         else:
             notice = "Terima kasih atas masukannya. Kami akan berusaha memperbaiki jawaban."
-            icon = "💬"
+            icon = ":material/forum:"
     message["meta"] = meta
     messages[index] = message
     ss["messages"] = messages
@@ -907,9 +936,12 @@ class ProviderFallbackRouter:
     def __init__(self, base_router, excluded_providers):
         self._base_router = base_router
         self._excluded_providers = list(excluded_providers or [])
-        self.tavily = base_router.tavily
+        self.tavily = getattr(base_router, "tavily", None)
 
     def __getattr__(self, name):
+        # Hanya dipanggil bila atribut tidak ditemukan di instance ini; jaga agar tidak rekursi.
+        if name == "_base_router":
+            raise AttributeError(name)
         return getattr(self._base_router, name)
 
     def chat(self, role, messages, temperature=0.7, max_tokens=1500):
@@ -1037,6 +1069,7 @@ def perform_repo_implementation(client: GitHubClient, snapshot: dict, task: str)
 
     changes = {}
     source_set = set(source)
+    existing_paths = {str(item.get("path", "")) for item in files}
     known_modes = {str(item.get("path")): item.get("mode", "100644") for item in files}
     for item in data["changes"]:
         if not isinstance(item, dict):
@@ -1051,6 +1084,10 @@ def perform_repo_implementation(client: GitHubClient, snapshot: dict, task: str)
         if not (path in source_set or path.lower().endswith(REPO_TEXT_EXTENSIONS)
                 or path.rsplit("/", 1)[-1].lower() == "dockerfile"):
             raise GitHubError(f"Format file {path} tidak diizinkan untuk operasi otomatis.")
+        # File yang sudah ada tetapi isinya tidak diberikan ke AI tidak boleh ditimpa buta.
+        if path in existing_paths and path not in source_set:
+            raise GitHubError(
+                f"AI mencoba menimpa {path} tanpa membaca isinya; tidak ada perubahan yang dikirim.")
         if len(content) > 180_000:
             raise GitHubError(f"File {path} terlalu besar untuk dikirim otomatis.")
         if path in changes:
@@ -1073,7 +1110,7 @@ def perform_repo_implementation(client: GitHubClient, snapshot: dict, task: str)
     except GitHubError as exc:
         raise GitHubError(f"Perubahan sudah disiapkan AI, tetapi GitHub gagal membuat branch/commit/PR: {exc}") from None
 
-    created = [path for path in changes if path not in source_set]
+    created = [path for path in changes if path not in existing_paths]
     updated = [path for path in changes if path in source_set]
     lines = [
         "**Selesai. Perubahan kode sudah dikirim ke branch baru.**",
@@ -1091,41 +1128,44 @@ def perform_repo_implementation(client: GitHubClient, snapshot: dict, task: str)
         "url": result["url"], "number": result["number"], "created": created, "updated": updated,
     }
 
+
 def render_answer(msg: dict, idx: int, council_page: bool = False):
     """Render assistant text; Council actions are rendered in a separate compact row."""
     if not isinstance(msg, dict) or msg.get("role") != "assistant":
         return
     st.markdown('<span class="aog-assistant-marker"></span>', unsafe_allow_html=True)
     st.markdown(str(msg.get("content", "")))
-    meta = msg.get("meta", {})
+    meta = msg.get("meta") or {}
     bits = []
     if meta.get("score") is not None:
         bits.append(f"Keyakinan verifier: **{meta['score']:.0%}**")
     elif meta.get("verified") is False:
         bits.append("Belum diverifikasi")
     if meta.get("providers"):
-        bits.append("Provider: " + ", ".join(meta["providers"]))
+        bits.append("Provider: " + ", ".join(str(p) for p in meta["providers"]))
     if bits:
         st.caption(" · ".join(bits))
     if meta.get("issues"):
-        st.caption("Catatan verifier: " + "; ".join(meta["issues"]))
+        st.caption("Catatan verifier: " + "; ".join(str(i) for i in meta["issues"]))
     if meta.get("sources"):
         with st.expander(f"Sumber web ({len(meta['sources'])})"):
             for i, source in enumerate(meta["sources"], 1):
-                st.markdown(f"{i}. [{source['title'] or source['url']}]({source['url']})")
+                url = source.get("url", "")
+                st.markdown(f"{i}. [{source.get('title') or url}]({url})")
     if meta.get("log") and not council_page:
         with st.expander(f"Lihat proses diskusi ({len(meta['log'])} langkah)"):
             for event in meta["log"]:
-                st.markdown(f"**{event['role']}** · `{event['provider']}` · {event['stage']}")
-                st.text(event["text"])
+                st.markdown(f"**{event.get('role', '')}** · `{event.get('provider', '')}` · {event.get('stage', '')}")
+                st.text(event.get("text", ""))
     if meta.get("flow") and ss.get("active_topbar_page") == "AOGx Agent Code":
         if st.button("Tampilkan di mesin", key=f"flow_{idx}", icon=":material/account_tree:",
                      help="Putar ulang proses jawaban ini di panel mesin."):
             ss.agent_code_flow = CouncilFlow.restore(meta["flow"], msg.get("question", ""))
             st.rerun()
     if not council_page:
-        st.download_button("Unduh jawaban (.md)", msg["content"], file_name="jawaban-aogx.md",
-                           key=f"dl_{idx}", icon=":material/download:")
+        st.download_button("Unduh jawaban (.md)", str(msg.get("content", "")),
+                           file_name="jawaban-aogx.md", key=f"dl_{idx}",
+                           icon=":material/download:")
 
 
 def render_council_user_actions(msg: dict, idx: int, messages: list):
@@ -1244,6 +1284,12 @@ def reset_chat(messages_key: str, request_count_key: str, flow_key: str):
     ss[messages_key] = []
     ss[request_count_key] = 0
     ss.pop(flow_key, None)
+    # Bersihkan sisa state edit/retry Council agar tidak menunjuk ke indeks pesan yang sudah hilang.
+    if messages_key == "messages":
+        ss.pop("council_editing_index", None)
+        ss.pop("council_edit_error_index", None)
+        ss.pop("council_edit_error", None)
+        ss.pop("council_pending_retry", None)
 
 
 def rerender_transcript(question: str, suppression_key: str):
@@ -1573,12 +1619,18 @@ def github_pr_panel():
                         raise ValueError("AI tidak mengusulkan perubahan file.")
                     if len(changes) > 4:
                         raise ValueError("AI mengubah lebih dari 4 file; batasi perubahan.")
+                    new_title = str(data.get("title") or "Perubahan dari AOGx AI")[:250]
+                    new_body = str(data.get("body") or "Perubahan dibuat dengan bantuan AOGx Council.")
                     ss.gh_changes = {
                         "files": changes, "source": source,
-                        "title": str(data.get("title") or "Perubahan dari AOGx AI")[:250],
-                        "body": str(data.get("body") or "Perubahan dibuat dengan bantuan AOGx Council."),
+                        "title": new_title, "body": new_body,
                         "provider": provider,
                     }
+                    # Proposal baru: judul/deskripsi PR harus ikut berganti, dan persetujuan
+                    # untuk diff lama tidak boleh terbawa ke diff yang baru.
+                    ss["gh_pr_title"] = new_title
+                    ss["gh_pr_body"] = new_body
+                    ss["gh_approved"] = False
                     ss.pop("gh_result", None)
                 except Exception as exc:
                     st.error(f"Gagal menyiapkan perubahan: {clip(str(exc), 240)}")
@@ -1591,8 +1643,10 @@ def github_pr_panel():
                     proposal["source"][path].splitlines(), content.splitlines(),
                     fromfile=f"a/{path}", tofile=f"b/{path}", lineterm="")
                 st.code("\n".join(diff)[:24_000], language="diff")
-            st.text_input("Judul PR", key="gh_pr_title", value=proposal["title"])
-            st.text_area("Deskripsi PR", key="gh_pr_body", value=proposal["body"])
+            ss.setdefault("gh_pr_title", proposal["title"])
+            ss.setdefault("gh_pr_body", proposal["body"])
+            st.text_input("Judul PR", key="gh_pr_title")
+            st.text_area("Deskripsi PR", key="gh_pr_body")
             approved = st.checkbox("Saya sudah meninjau diff dan menyetujui perubahan ini.",
                                    key="gh_approved")
             if st.button("Buat branch, commit & Pull Request", icon=":material/merge:",
@@ -1638,8 +1692,10 @@ if is_agent_code_page:
                             help="Kedalaman diskusi"):
                 st.markdown("**Kedalaman diskusi**")
                 agent_code_modes = ("Seimbang", "Mendalam")
+                # Nilai awal sudah diatur lewat session_state (agent_code_mode_pick),
+                # jadi tidak perlu `index=` (menghindari peringatan widget ganda).
                 st.radio("Kedalaman", agent_code_modes, key="agent_code_mode_pick",
-                         index=agent_code_modes.index(mode), format_func=mode_label,
+                         format_func=mode_label,
                          on_change=pick_mode, label_visibility="collapsed")
                 st.caption("Mode menengah aktif secara default; mode mendalam memakai lebih banyak kuota.")
         with b2:
@@ -1657,7 +1713,10 @@ else:
     left = st.container(key="council-chat-column")
 
 messages = ss[active_messages_key]
-cfg = config.MODES[mode]
+# Pengaturan mode: jika config.MODES tidak memuat nama mode, jatuh ke mode yang tersedia
+# daripada membuat seluruh halaman crash dengan KeyError.
+cfg = (config.MODES.get(mode) or config.MODES.get("Seimbang")
+       or next(iter(config.MODES.values())))
 
 # Council's process visualization remains in Agent Code, while chat stays available on both pages.
 flow = ss.get(active_flow_key)
@@ -1746,6 +1805,14 @@ with left:
                               use_container_width=True,
                               help="Jawaban langsung tanpa putaran; Groq GPT-OSS 120B diprioritaskan.",
                               on_click=pick_council_mode, args=("Flash",))
+                with control_cols[2]:
+                    # Pesan batas sesi menyuruh pengguna menekan "Chat baru"; di halaman
+                    # Council sebelumnya tombol ini tidak ada.
+                    st.button("Chat baru", key="council-new-chat", icon=":material/add_comment:",
+                              disabled=not messages,
+                              help="Mulai percakapan baru dan reset batas permintaan.",
+                              on_click=reset_chat,
+                              args=(active_messages_key, active_request_count_key, active_flow_key))
                 with control_cols[3]:
                     st.button("Voice", key="council-voice", icon=":material/graphic_eq:",
                               disabled=True, use_container_width=True,
@@ -1782,6 +1849,20 @@ auto_analysis = False
 if not question and auto_analysis_request:
     question = str(auto_analysis_request.get("prompt") or "").strip()
     auto_analysis = bool(question)
+    if auto_analysis:
+        # Hapus segera: jika analisis ditolak (mis. batas sesi), permintaan tidak boleh
+        # menggantung dan terulang pada setiap rerun.
+        ss.pop("gh_auto_analysis_pending", None)
+
+
+def show_chat_error(text: str):
+    """Tampilkan error di dalam area chat bila ada, atau langsung di halaman."""
+    if chat_box is not None:
+        with chat_box:
+            st.error(text)
+    else:
+        st.error(text)
+
 
 # Chat transcript, rendered separately for Council and Agent Code.
 if chat_box is not None:
@@ -1814,13 +1895,18 @@ if question:
     question = question.strip()
     usable = demo or bool(active)
     github_connected = bool(ss.get("gh_oauth_token") and ss.get("gh_oauth_user"))
+    # Batas panjang dan batas sesi dicek paling awal supaya berlaku untuk semua jalur di bawah.
+    if len(question) > config.MAX_QUESTION_CHARS:
+        show_chat_error(f"Pertanyaan terlalu panjang (maks {config.MAX_QUESTION_CHARS} karakter).")
+    elif ss[active_request_count_key] >= config.MAX_REQUESTS_PER_SESSION:
+        show_chat_error("Batas permintaan sesi ini tercapai. Klik \"Chat baru\" atau muat ulang halaman.")
     # Jawaban ini tidak memerlukan provider AI: arahkan langsung ke tombol koneksi yang ada di bawah chat.
-    if is_agent_code_page and is_repo_development_request(question) and not github_connected and not auto_analysis:
+    elif is_agent_code_page and is_repo_development_request(question) and not github_connected and not auto_analysis:
         messages.append({"role": "user", "content": question})
         answer = ("Bisa. Pertama, hubungkan dulu akun GitHub kamu melalui tombol "
-                  "**Hubungkan akun GitHub** di bawah kolom chat, supaya AOGx bisa membaca repo "
+                  "**Hubungkan GitHub** di bawah kolom chat, supaya AOGx bisa membaca repo "
                   "yang kamu pilih. Setelah terhubung, pilih repositori dan branch, lalu tekan "
-                  "**Analisis repo & branch otomatis**. AOGx akan mempelajarinya tanpa mengubah file.")
+                  "**Analisis**. AOGx akan mempelajarinya tanpa mengubah file.")
         msg = {"role": "assistant", "content": answer, "question": question,
                "meta": {"score": None, "issues": [], "verified": None, "sources": [],
                         "providers": [], "log": [], "flow": None}}
@@ -1829,12 +1915,6 @@ if question:
         # Render both role-tagged messages together on the next run so assistant controls
         # can never be attached to the user's chat-message container.
         rerender_transcript(question, rerun_key)
-    elif len(question) > config.MAX_QUESTION_CHARS:
-        with chat_box:
-            st.error(f"Pertanyaan terlalu panjang (maks {config.MAX_QUESTION_CHARS} karakter).")
-    elif ss[active_request_count_key] >= config.MAX_REQUESTS_PER_SESSION:
-        with chat_box:
-            st.error("Batas permintaan sesi ini tercapai. Klik \"Chat baru\" atau muat ulang halaman.")
     elif is_agent_code_page and github_connected and is_repo_implementation_request(question) and not auto_analysis:
         # A concrete code task uses GitHub source context and creates a unique branch + commit + PR.
         user_msg = {"role": "user", "content": question}
@@ -1887,10 +1967,7 @@ if question:
         # in-place after a user bubble can make Streamlit reuse that bubble's DOM container.
         rerender_transcript(question, rerun_key)
     elif not usable or (auto_analysis and demo):
-        if auto_analysis:
-            ss.pop("gh_auto_analysis_pending", None)
-        with chat_box:
-            st.error("Belum ada provider AI aktif. Repo sudah dibaca secara read-only, tetapi AI belum bisa menganalisisnya. Lengkapi minimal satu API key provider di Streamlit Secrets lalu tekan tombol analisis repo lagi.")
+        show_chat_error("Belum ada provider AI aktif. Repo sudah dibaca secara read-only, tetapi AI belum bisa menganalisisnya. Lengkapi minimal satu API key provider di Streamlit Secrets lalu tekan tombol analisis repo lagi.")
     else:
         if council_reanswer and council_retry_request:
             if council_retry_request.get("kind") == "fallback":
@@ -1926,8 +2003,6 @@ if question:
                             + str(ss.get("gh_repo_context") or "")[:28_000])
         if not council_reanswer:
             messages.append({"role": "user", "content": question})
-        if auto_analysis:
-            ss.pop("gh_auto_analysis_pending", None)
         ss[active_request_count_key] += 1
         flow = CouncilFlow(question=question, mode_name=mode, rounds=cfg["rounds"],
                            verify=cfg["verify"], max_retries=cfg["max_retries"])
