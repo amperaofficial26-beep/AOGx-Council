@@ -400,6 +400,14 @@ body:has(.aog-council-chat-started) .aog-council-hero {
     height: clamp(320px, calc(100vh - 330px), 900px) !important;
     max-height: clamp(320px, calc(100vh - 330px), 900px) !important;
 }
+/* st.container(height=700) juga memberi pembungkusnya tinggi tetap 700px. Tanpa ini ada ruang
+   kosong di bawah kotak chat, composer terdorong ke bawah layar, dan saat Streamlit menggulir
+   ke bawah jawaban AI ikut keluar dari layar. */
+[data-testid="stLayoutWrapper"]:has(> .st-key-chat-history):not(.st-key-council-chat-column [data-testid="stLayoutWrapper"]) {
+    flex: 0 0 auto !important;
+    height: auto !important;
+    max-height: none !important;
+}
 /* Chat input and repository controls form one Arena-style composer panel. */
 .st-key-chat-composer-shell {
     width: 100% !important;
@@ -1295,7 +1303,39 @@ def reset_chat(messages_key: str, request_count_key: str, flow_key: str):
 def rerender_transcript(question: str, suppression_key: str):
     """Rebuild chat-message boundaries without accidentally processing a repeated submit."""
     ss[suppression_key] = question
+    ss["_scroll_to_answer"] = True
     st.rerun()
+
+
+# Setelah jawaban baru, Streamlit menggulir halaman dan kotak chat ke paling bawah. Di Agent
+# Code kolom kanan (mesin + jejak langkah) lebih tinggi dari layar, sehingga kotak chat ikut
+# terdorong ke atas dan awal jawaban AI tidak terlihat. Skrip kecil ini menggulir balik ke
+# awal jawaban terakhir.
+_SCROLL_TO_ANSWER_JS = """<script>
+(function () {
+  var P = window.parent, d, n = 0;
+  try { d = P.document; } catch (e) { return; }
+  function go() {
+    var box = d.querySelector('.st-key-chat-history');
+    if (!box) return;
+    var main = d.querySelector('.stMain') || d.querySelector('[data-testid="stMain"]');
+    var top = box.getBoundingClientRect().top;
+    if (main && top < 0) main.scrollTop = Math.max(0, main.scrollTop + top - 90);
+    var msgs = box.querySelectorAll('[data-testid="stChatMessage"]'), last = null;
+    for (var i = msgs.length - 1; i >= 0; i--) {
+      if (msgs[i].querySelector('.aog-assistant-marker')) { last = msgs[i]; break; }
+    }
+    if (last) box.scrollTop += last.getBoundingClientRect().top - box.getBoundingClientRect().top - 8;
+  }
+  // Ulangi sebentar karena Streamlit bisa menggulir ke bawah lagi saat iframe kecil selesai
+  // dimuat; berhenti begitu pengguna menggulir sendiri.
+  var iv = setInterval(function () { go(); if (++n > 30) stop(); }, 150);
+  function stop() { clearInterval(iv); }
+  ['wheel', 'touchstart', 'keydown', 'mousedown'].forEach(function (ev) {
+    d.addEventListener(ev, stop, {once: true, passive: true});
+  });
+})();
+</script>"""
 
 
 def github_pr_panel():
@@ -2107,3 +2147,6 @@ if question:
 if chat_box is not None:
     with chat_box:
         st.markdown(CHAT_TAIL, unsafe_allow_html=True)
+
+if ss.pop("_scroll_to_answer", False):
+    components.html(_SCROLL_TO_ANSWER_JS, height=0)
