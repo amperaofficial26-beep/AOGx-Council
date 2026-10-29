@@ -404,9 +404,9 @@ body:has(.aog-council-chat-started) .aog-council-hero {
    kosong di bawah kotak chat, composer terdorong ke bawah layar, dan saat Streamlit menggulir
    ke bawah jawaban AI ikut keluar dari layar. */
 [data-testid="stLayoutWrapper"]:has(> .st-key-chat-history):not(.st-key-council-chat-column [data-testid="stLayoutWrapper"]) {
-    flex: 0 0 auto !important;
-    height: auto !important;
-    max-height: none !important;
+    flex: 0 0 clamp(320px, calc(100vh - 330px), 900px) !important;
+    height: clamp(320px, calc(100vh - 330px), 900px) !important;
+    max-height: clamp(320px, calc(100vh - 330px), 900px) !important;
 }
 /* Chat input and repository controls form one Arena-style composer panel. */
 .st-key-chat-composer-shell {
