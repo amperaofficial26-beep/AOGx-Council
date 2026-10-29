@@ -747,15 +747,38 @@ def render_copy_icon(text: str, title: str, key: str):
     if(clipboard&&target.isSecureContext){{await clipboard.writeText(text);return;}}
     legacyCopy(text);
   }}
+  function showCopyToast(message, failed=false){{
+    const target=copyWindow();
+    const doc=target.document;
+    let toast=doc.getElementById("aogx-copy-toast");
+    if(!toast){{
+      toast=doc.createElement("div");
+      toast.id="aogx-copy-toast";toast.setAttribute("role","status");toast.setAttribute("aria-live","polite");
+      toast.style.cssText="position:fixed;top:20px;right:20px;z-index:2147483647;max-width:min(420px,calc(100vw - 40px));"
+        +"padding:11px 16px;border-radius:12px;font:600 14px/1.4 system-ui,sans-serif;"
+        +"color:#e8fff6;background:rgba(8,27,29,.97);border:1px solid rgba(52,211,153,.42);"
+        +"box-shadow:0 8px 24px rgba(0,0,0,.35);opacity:0;transition:opacity .18s ease;pointer-events:none";
+      doc.body.appendChild(toast);
+    }}
+    toast.textContent=message;
+    toast.style.borderColor=failed?"rgba(248,113,113,.55)":"rgba(52,211,153,.42)";
+    toast.style.color=failed?"#fee2e2":"#e8fff6";
+    toast.style.opacity="1";
+    if(toast.__aogxTimer)target.clearTimeout(toast.__aogxTimer);
+    toast.__aogxTimer=target.setTimeout(()=>{{toast.style.opacity="0"}},1900);
+  }}
   function showCopied(button){{
     const title=button.getAttribute("data-aog-copy-title")||"Salin";
+    const message=title==="Salin pertanyaan"?"Pertanyaan berhasil disalin.":"Jawaban berhasil disalin.";
     button.innerHTML=checkIcon;button.title="Tersalin";button.setAttribute("aria-label","Tersalin");
     window.setTimeout(()=>{{button.innerHTML=copyIcon;button.title=title;button.setAttribute("aria-label",title)}},1000);
+    showCopyToast(message);
   }}
   function showCopyFailed(button){{
     const title=button.getAttribute("data-aog-copy-title")||"Salin";
     button.title="Gagal menyalin";
     window.setTimeout(()=>{{button.title=title}},1800);
+    showCopyToast("Gagal menyalin. Coba lagi.",true);
   }}
   document.addEventListener("click",async(event)=>{{
     const target=event.target instanceof Element?event.target:event.target&&event.target.parentElement;
