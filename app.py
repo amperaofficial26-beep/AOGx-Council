@@ -343,6 +343,12 @@ body:has(.aog-council-chat-started) .aog-council-hero {
 .st-key-council-chat-column [class*="st-key-council-assistant-actions-"] [data-testid="stDownloadButton"] button:hover {
   background:rgba(148,163,184,.12) !important; color:#e2e8f0 !important;
 }
+.st-key-council-chat-column [class*="st-key-council-feedback-up-"] [data-testid="stButton"] button[kind="primary"] {
+  background:rgba(16,185,129,.16) !important; color:#6ee7b7 !important;
+}
+.st-key-council-chat-column [class*="st-key-council-feedback-down-"] [data-testid="stButton"] button[kind="primary"] {
+  background:rgba(244,63,94,.16) !important; color:#fda4af !important;
+}
 .st-key-council-chat-column [class*="st-key-council-user-actions-"] button p,
 .st-key-council-chat-column [class*="st-key-council-assistant-actions-"] button p {
   position:absolute !important; width:1px !important; height:1px !important;
@@ -796,6 +802,26 @@ def request_council_fallback(index: int, question: str, used_providers: list):
     }
 
 
+def set_council_feedback(index: int, rating: str):
+    """Toggle a good/bad rating on an assistant answer in the Council transcript."""
+    if rating not in {"good", "bad"}:
+        return
+    messages = ss.get("messages", [])
+    if (not isinstance(messages, list) or index < 0 or index >= len(messages)
+            or not isinstance(messages[index], dict)
+            or messages[index].get("role") != "assistant"):
+        return
+    message = dict(messages[index])
+    meta = dict(message.get("meta") or {}) if isinstance(message.get("meta"), dict) else {}
+    if meta.get("feedback") == rating:
+        meta.pop("feedback", None)
+    else:
+        meta["feedback"] = rating
+    message["meta"] = meta
+    messages[index] = message
+    ss["messages"] = messages
+
+
 def show_council_process_in_machine(flow_snapshot: dict, question: str):
     if not flow_snapshot:
         return
@@ -1068,6 +1094,7 @@ def render_council_assistant_actions(msg: dict, idx: int, messages: list):
     used_providers = list(meta.get("providers") or [])
     alternatives = set(active_provider_names).difference(used_providers)
     is_latest = idx == len(messages) - 1
+    feedback = meta.get("feedback")
     request_limit_reached = ss.get("n_requests", 0) >= config.MAX_REQUESTS_PER_SESSION
     can_fallback = bool(not ss.get("demo") and used_providers and alternatives and is_latest
                         and msg.get("question") and not request_limit_reached)
@@ -1086,7 +1113,7 @@ def render_council_assistant_actions(msg: dict, idx: int, messages: list):
     else:
         fallback_help = "Ulangi jawaban dengan melewati provider yang dipakai sebelumnya."
     with st.container(key=f"council-assistant-actions-{idx}"):
-        cols = st.columns(4, gap="small", vertical_alignment="center")
+        cols = st.columns(6, gap="small", vertical_alignment="center")
         with cols[0]:
             st.button("Lihat proses di mesin", key=f"council-machine-{idx}",
                       icon=":material/account_tree:", help="Buka proses jawaban ini di mesin Council.",
@@ -1107,6 +1134,16 @@ def render_council_assistant_actions(msg: dict, idx: int, messages: list):
                       args=(idx, str(msg.get("question", "")), used_providers))
         with cols[3]:
             render_copy_icon(str(msg.get("content", "")), "Salin jawaban", f"assistant-{idx}")
+        with cols[4]:
+            st.button("Respons baik", key=f"council-feedback-up-{idx}",
+                      icon=":material/thumb_up:", help="Tandai jawaban ini sebagai respons baik.",
+                      type="primary" if feedback == "good" else "secondary",
+                      on_click=set_council_feedback, args=(idx, "good"))
+        with cols[5]:
+            st.button("Respons buruk", key=f"council-feedback-down-{idx}",
+                      icon=":material/thumb_down:", help="Tandai jawaban ini sebagai respons buruk.",
+                      type="primary" if feedback == "bad" else "secondary",
+                      on_click=set_council_feedback, args=(idx, "bad"))
 
 
 MODE_HELP = {
