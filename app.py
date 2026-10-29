@@ -5,6 +5,7 @@ AOGx Agent Code menampilkan workspace chat dan mesin proses; AOGx Council berisi
 import base64
 import difflib
 import hmac
+import inspect
 import re
 import secrets
 from pathlib import Path
@@ -797,9 +798,15 @@ def render_copy_icon(text: str, title: str, key: str):
   }});
 }})();
 </script></div>"""
+    html_supports_javascript = False
     if hasattr(st, "html"):
+        try:
+            html_supports_javascript = "unsafe_allow_javascript" in inspect.signature(st.html).parameters
+        except (TypeError, ValueError):
+            pass
+    if html_supports_javascript:
         st.html(html, width=32, unsafe_allow_javascript=True)
-    else:  # Support the app's minimum Streamlit version before st.html was added.
+    else:  # Older st.html versions sanitize scripts; use the JavaScript-enabled component iframe.
         document = ("<!doctype html><html><head><style>html,body{margin:0;padding:0;"
                     "background:transparent;overflow:hidden}</style></head><body>" + html
                     + "</body></html>")
