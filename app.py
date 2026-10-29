@@ -113,6 +113,8 @@ header[data-testid="stHeader"] { display:none !important; height:0 !important; }
 [data-testid="stSidebar"], [data-testid="stSidebarCollapsedControl"],
 [data-testid="collapsedControl"] { display: none !important; }
 html, body, [class*="css"] { font-family: "Inter", ui-sans-serif, system-ui, -apple-system, sans-serif; }
+/* Small, Council-only size increase without changing the fixed desktop canvas. */
+html:has(.st-key-council-chat-column) { font-size:104% !important; }
 .aog-title { font-size: 1.9rem; font-weight: 800; letter-spacing: .5px; line-height: 1.15;
   background: linear-gradient(90deg, #e5e7eb, #94a3b8 60%, #cbd5e1);
   -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
