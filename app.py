@@ -684,15 +684,8 @@ def render_user_message(msg: dict):
     st.markdown(str(msg.get("content", "")))
 
 
-_COPY_ICON_SVG = (
-    '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" '
-    'd="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 '
-    '1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>'
-)
-_CHECK_ICON_SVG = (
-    '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" '
-    'd="M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z"/></svg>'
-)
+_COPY_ICON_MARKUP = '<span class="aog-copy-glyph" aria-hidden="true"></span>'
+_CHECK_ICON_MARKUP = '<span class="aog-check-glyph" aria-hidden="true"></span>'
 
 
 def render_copy_icon(text: str, title: str, key: str):
@@ -705,15 +698,23 @@ def render_copy_icon(text: str, title: str, key: str):
 #{widget_id} button{{display:grid;place-items:center;width:30px;height:30px;padding:0;border:0;
   border-radius:8px;background:transparent;color:#94a3b8;cursor:pointer}}
 #{widget_id} button:hover{{background:rgba(148,163,184,.13);color:#eef2ff}}
-#{widget_id} svg{{width:17px;height:17px;display:block}}
+#{widget_id} .aog-copy-glyph,#{widget_id} .aog-check-glyph{{position:relative;display:block;
+  width:17px;height:17px;color:inherit}}
+#{widget_id} .aog-copy-glyph::before,#{widget_id} .aog-copy-glyph::after{{content:"";position:absolute;
+  width:8px;height:10px;border:1.6px solid currentColor;border-radius:1.5px}}
+#{widget_id} .aog-copy-glyph::before{{left:6px;top:2px}}
+#{widget_id} .aog-copy-glyph::after{{left:3px;top:5px}}
+#{widget_id} .aog-check-glyph::before{{content:"";position:absolute;left:4px;top:1px;
+  width:7px;height:12px;border-right:2px solid currentColor;border-bottom:2px solid currentColor;
+  transform:rotate(45deg)}}
 </style>
-<button type="button" title="{title}" aria-label="{title}">{_COPY_ICON_SVG}</button>
+<button type="button" title="{title}" aria-label="{title}">{_COPY_ICON_MARKUP}</button>
 <script>
 (()=>{{
   const encoded="{encoded}";
   const content=new TextDecoder("utf-8").decode(Uint8Array.from(atob(encoded),c=>c.charCodeAt(0)));
-  const copyIcon=`{_COPY_ICON_SVG}`;
-  const checkIcon=`{_CHECK_ICON_SVG}`;
+  const copyIcon=`{_COPY_ICON_MARKUP}`;
+  const checkIcon=`{_CHECK_ICON_MARKUP}`;
   const root=document.getElementById("{widget_id}");
   const button=root.querySelector("button");
   function legacyCopy(){{
