@@ -46,15 +46,34 @@ class WorkflowPayloadTest(unittest.TestCase):
         n = {x["id"]: x for x in neural.payload(flow)["nodes"]}
         self.assertEqual(n["analyst_proc"]["state"], "done")
 
-    def test_simple_question_adds_bypass_and_render_is_safe(self):
+    def test_simple_question_flows_through_main_route_without_jumping(self):
         flow = CouncilFlow("</script><b>x</b>")
         flow.consume(st("Menganalisis pertanyaan"))
         flow.consume(ag("Perencanaan", "Orchestrator", '{"needs_web": false, "complexity": "simple"}'))
+        flow.consume(st("Menyusun jawaban"))
         data = neural.payload(flow)
-        self.assertTrue(any(e["kind"] == "bypass" for e in data["edges"]))
+        self.assertFalse(any(e["kind"] == "bypass" for e in data["edges"]))
+        cls = {(e["a"], e["b"]): e for e in data["edges"]}
+        route = [("orchestrator", "skeptic"), ("skeptic", "skeptic_recall"),
+                 ("skeptic_recall", "skeptic_proc"), ("skeptic_proc", "synthesizer")]
+        for i, key in enumerate(route):
+            self.assertEqual(cls[key]["cls"], "live", key)
+            self.assertEqual((cls[key]["seq"], cls[key]["seqn"]), (i, 4))
+        for agent in ("analyst", "expert"):
+            self.assertEqual(cls[("orchestrator", agent)]["cls"], "skip")
+            self.assertEqual(cls[(f"{agent}_proc", "synthesizer")]["cls"], "skip")
+        nodes = {n["id"]: n for n in data["nodes"]}
+        self.assertEqual(nodes["skeptic"]["state"], "skipped")
         html = neural.render(flow)
         self.assertNotIn("</script><b>", html)
         self.assertNotIn("__DATA__", html)
+
+    def test_flash_mode_runs_light_from_trigger_to_answer(self):
+        flow = CouncilFlow("hai", rounds=0, verify=False)
+        flow.consume(st("Flash: menjawab langsung"))
+        edges = {(e["a"], e["b"]): e for e in neural.payload(flow)["edges"]}
+        self.assertEqual(edges[("start", "orchestrator")]["cls"], "live")
+        self.assertEqual(edges[("verifier", "answer")]["seqn"], 7)
 
 
 if __name__ == "__main__":

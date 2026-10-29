@@ -73,6 +73,35 @@ def _node(flow, nid: str, kind: str, x: float, y: float, label: str, sub: str, i
             "prov": flow.providers.get(src, ""), "dur": flow.durations.get(src, ""), "note": note}
 
 
+# Rute utama (lajur tengah). Bila ada node yang dilewati (pertanyaan sederhana, mode Flash,
+# tanpa verifikasi), cahaya tetap mengalir lewat rute ini, bukan melompat lewat jalan pintas.
+MAIN_ROUTE = ["start", "orchestrator", "skeptic", "skeptic_recall", "skeptic_proc",
+              "synthesizer", "verifier", "answer"]
+
+
+def _through_route(states: dict) -> dict:
+    """Kelas animasi untuk sisi rute utama yang menyentuh node dilewati.
+
+    Statusnya diambil dari node aktif terdekat di hulu dan hilir, dan tiap sisi diberi nomor
+    urut (seq/seqn) supaya JS bisa menjalankan satu cahaya bersambung sepanjang segmen.
+    """
+    out, route, i = {}, MAIN_ROUTE, 0
+    while i < len(route) - 1:
+        if SKIPPED not in (states[route[i]], states[route[i + 1]]):
+            i += 1
+            continue
+        j = i + 1
+        while j < len(route) - 1 and states[route[j]] == SKIPPED:
+            j += 1
+        up, down = states[route[i]], states[route[j]]
+        cls = "skip" if SKIPPED in (up, down) else edge_cls(up, down)
+        for k in range(i, j):
+            out[(route[k], route[k + 1])] = {"cls": cls, "seq": k - i, "seqn": j - i,
+                                              "to": route[j]}
+        i = j
+    return out
+
+
 def payload(flow) -> dict:
     """Data murni (JSON) untuk kanvas mesin; tidak memanggil Streamlit sehingga bisa diuji."""
     nodes = [
@@ -109,10 +138,19 @@ def payload(flow) -> dict:
               "Success status", "pencil", TEAL, 7),
     ]
     states = {n["id"]: n["state"] for n in nodes}
+    through = _through_route(states)
 
     def edge(a, b, kind="main", label="", cls=None):
-        return {"a": a, "b": b, "kind": kind, "label": label,
-                "cls": cls or edge_cls(states[a], states[b])}
+        e = {"a": a, "b": b, "kind": kind, "label": label}
+        if (a, b) in through:  # jalur utama yang melewati node dilewati: tetap dialiri cahaya
+            e.update(through[(a, b)])
+        elif cls:
+            e["cls"] = cls
+        elif SKIPPED in (states[a], states[b]):
+            e["cls"] = "skip"   # jalur yang tidak dipakai tidak diberi warna
+        else:
+            e["cls"] = edge_cls(states[a], states[b])
+        return e
 
     edges = [edge("start", "orchestrator"), edge("orchestrator", "researcher", "sub")]
     for agent in AGENTS:
@@ -124,8 +162,6 @@ def payload(flow) -> dict:
             edge(f"{agent}_recall", f"{agent}_proc"),
             edge(f"{agent}_proc", "synthesizer"),
         ]
-    if debate_state(flow) == SKIPPED and states["synthesizer"] != SKIPPED:
-        edges.append(edge("orchestrator", "synthesizer", "bypass", "sederhana"))
     edges += [edge("synthesizer", "verifier"), edge("verifier", "answer", label="lolos"),
               edge("verifier", "synthesizer", "back", "revisi",
                    cls="hot" if flow.attempt > 0 else "faint")]
@@ -334,10 +370,6 @@ function pathFor(e) {
     const x1 = a.x, y1 = a.y + a.h / 2 + 2, x2 = b.x, y2 = b.y + b.h / 2 + 2, dip = Math.max(y1, y2) + 70;
     return `M${x1},${y1} C${x1},${dip} ${x2},${dip} ${x2},${y2}`;
   }
-  if (e.kind === 'bypass') {
-    const x1 = a.x, y1 = a.y - a.h / 2, x2 = b.x, y2 = b.y - b.h / 2;
-    return `M${x1},${y1} C${x1},40 ${x2},40 ${x2},${y2}`;
-  }
   const [x1, y1] = outPort(a), [x2, y2] = inPort(b), k = Math.max(40, (x2 - x1) * 0.5);
   return `M${x1},${y1} C${x1 + k},${y1} ${x2 - k},${y2} ${x2},${y2}`;
 }
@@ -345,7 +377,7 @@ D.edges.forEach(e => {
   e.d = pathFor(e); e.p2d = new Path2D(e.d);
   meas.setAttribute('d', e.d); const L = meas.getTotalLength(); e.len = L; e.pts = [];
   for (let i = 0; i <= 80; i++) { const p = meas.getPointAtLength(L * i / 80); e.pts.push([p.x, p.y]); }
-  e.color = (N[e.b] && N[e.b].accent) || '#4da3ff';
+  e.color = (N[e.to || e.b] && N[e.to || e.b].accent) || '#4da3ff';
 });
 function at(e, u) { u = Math.max(0, Math.min(1, u)); const f = u * 80, i = Math.floor(f), r = f - i;
   const a = e.pts[i], b = e.pts[Math.min(80, i + 1)]; return [a[0] + (b[0] - a[0]) * r, a[1] + (b[1] - a[1]) * r]; }
@@ -354,7 +386,6 @@ function at(e, u) { u = Math.max(0, Math.min(1, u)); const f = u * 80, i = Math.
 const B = (() => { let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
   D.nodes.forEach(n => { x0 = Math.min(x0, n.x - n.w / 2 - 40); x1 = Math.max(x1, n.x + n.w / 2 + (n.id === 'answer' ? 95 : 40));
                          y0 = Math.min(y0, n.y - n.h / 2 - 30); y1 = Math.max(y1, n.y + n.h / 2 + 52); });
-  if (D.edges.some(e => e.kind === 'bypass')) y0 = Math.min(y0, 24);
   return {x: x0, y: y0 - 58, w: x1 - x0, h: y1 - y0 + 58}; })();
 let FIT = {k: 1, x: 0, y: 0};
 function computeFit() { const k = Math.min(W / B.w, H / B.h);
@@ -578,7 +609,7 @@ function drawEdgeBase(e, t, glowA) {
   if (glowA > 0) { ctx.globalAlpha = glowA; ctx.strokeStyle = e.color; ctx.lineWidth = 2.6; ctx.setLineDash([]);
     ctx.shadowColor = e.color; ctx.shadowBlur = 14; ctx.stroke(e.p2d); }
   ctx.restore();
-  if (e.kind !== 'sub' && e.kind !== 'back' && e.kind !== 'bypass') {  // panah kecil di ujung
+  if (e.kind !== 'sub' && e.kind !== 'back' ) {  // panah kecil di ujung
     const [x2, y2] = at(e, 1), [x1, y1] = at(e, .96), ang = Math.atan2(y2 - y1, x2 - x1);
     if (e.cls === 'live' || e.cls === 'hot') { ctx.save(); ctx.translate(x2 - 5, y2); ctx.rotate(ang);
       ctx.fillStyle = e.cls === 'live' ? e.color : 'rgba(228,228,231,.7)';
@@ -642,22 +673,26 @@ function frame(ms) {
   ctx.setTransform(dpr * cam.k, 0, 0, dpr * cam.k, dpr * cam.x, dpr * cam.y);
 
   const sweeping = sweepOn && st < SWEEP_END;
-  const boostOf = n => { if (!sweeping) return 0; const d = st - n.depth * STEP;
+  const boostOf = n => { if (!sweeping || n.state === 'skipped') return 0; const d = st - n.depth * STEP;
     return d < -0.05 ? 0 : Math.max(0, 1 - Math.abs(d) / (STEP * 1.6)); };
 
   // kabel: dasar + cahaya
   D.edges.forEach(e => {
     let glowA = 0;
-    if (sweeping && e.kind !== 'back' && N[e.a]) { const d = N[e.a].depth, u = (st - d * STEP) / STEP;
+    if (sweeping && e.kind !== 'back' && e.cls !== 'skip' && N[e.a]) { const d = N[e.a].depth, u = (st - d * STEP) / STEP;
       if (e.kind === 'sub') glowA = Math.max(0, 1 - Math.abs(u - .5) * 1.4) * .7;
       else if (u > 0 && u < 2.2) glowA = Math.max(0, .55 - (u - 1) * .35) * (u < 1 ? u : 1); }
     drawEdgeBase(e, t, glowA);
   });
   D.edges.forEach(e => {
-    if (sweeping && e.kind !== 'back' && e.kind !== 'sub') {
+    if (sweeping && e.kind !== 'back' && e.kind !== 'sub') { if (e.cls === 'skip') return;
       const u = (st - N[e.a].depth * STEP) / STEP; comet(e, u, e.color, 1, 4);
     } else if (!calm) {
-      if (e.cls === 'live') { const sp = e.kind === 'sub' ? .9 : .7; comet(e, (t * sp) % 1.15, e.color, 1, 3.6);
+      if (e.seqn > 1) {  // satu cahaya bersambung melewati node yang dilewati
+        if (e.cls === 'live') { const ph = (t * .9) % (e.seqn + .6); comet(e, ph - e.seq, e.color, 1, 3.6); }
+        else if (e.cls === 'hot') { const ph = (t * .35) % (e.seqn + 1.2); comet(e, ph - e.seq, e.color, .45, 2.6); }
+      }
+      else if (e.cls === 'live') { const sp = e.kind === 'sub' ? .9 : .7; comet(e, (t * sp) % 1.15, e.color, 1, 3.6);
         comet(e, (t * sp + .55) % 1.15, e.color, .7, 3); }
       else if (e.cls === 'hot' && e.kind !== 'sub') comet(e, (t * .22 + e.len * .003) % 1.6, e.color, .45, 2.6);
     }
