@@ -710,36 +710,67 @@ def render_copy_icon(text: str, title: str, key: str):
   width:7px;height:12px;border-right:2px solid currentColor;border-bottom:2px solid currentColor;
   transform:rotate(45deg)}}
 </style>
-<button type="button" title="{title}" aria-label="{title}">{_COPY_ICON_MARKUP}</button>
+<button type="button" data-aog-copy-key="{widget_id}" data-aog-copy-title="{title}"
+        title="{title}" aria-label="{title}">{_COPY_ICON_MARKUP}</button>
 <script>
 (()=>{{
+  const key="{widget_id}";
   const encoded="{encoded}";
   const content=new TextDecoder("utf-8").decode(Uint8Array.from(atob(encoded),c=>c.charCodeAt(0)));
+  const registry=window.__aogxCopyRegistry||(window.__aogxCopyRegistry={{contents:{{}},listenerInstalled:false}});
+  registry.contents[key]=content;
+  if(registry.listenerInstalled)return;
+  registry.listenerInstalled=true;
   const copyIcon=`{_COPY_ICON_MARKUP}`;
   const checkIcon=`{_CHECK_ICON_MARKUP}`;
-  const root=document.getElementById("{widget_id}");
-  const button=root.querySelector("button");
-  function legacyCopy(){{
-    const field=document.createElement("textarea");
-    field.value=content;field.setAttribute("readonly","");
-    field.style.position="fixed";field.style.opacity="0";field.style.left="-1000px";
-    document.body.appendChild(field);field.select();
-    const ok=document.execCommand("copy");field.remove();
+  function copyWindow(){{
+    try{{
+      if(window.parent&&window.parent!==window&&window.parent.document.body)return window.parent;
+    }}catch(_error){{}}
+    return window;
+  }}
+  function legacyCopy(text){{
+    const target=copyWindow();
+    const targetDocument=target.document;
+    const field=targetDocument.createElement("textarea");
+    field.value=text;field.setAttribute("readonly","");field.setAttribute("aria-hidden","true");
+    field.style.position="fixed";field.style.top="0";field.style.left="-10000px";field.style.opacity="0";
+    targetDocument.body.appendChild(field);field.focus();field.select();
+    field.setSelectionRange(0,field.value.length);
+    let ok=false;
+    try{{ok=targetDocument.execCommand("copy");}}finally{{field.remove();}}
     if(!ok)throw new Error("Clipboard copy failed");
   }}
-  function showCopied(){{
-    button.innerHTML=checkIcon;button.title="Tersalin";
-    window.setTimeout(()=>{{button.innerHTML=copyIcon;button.title="{title}"}},1000);
+  async function copyContent(text){{
+    const target=copyWindow();
+    const clipboard=target.navigator&&target.navigator.clipboard;
+    if(clipboard&&target.isSecureContext){{await clipboard.writeText(text);return;}}
+    legacyCopy(text);
   }}
-  button.addEventListener("click",async()=>{{
+  function showCopied(button){{
+    const title=button.getAttribute("data-aog-copy-title")||"Salin";
+    button.innerHTML=checkIcon;button.title="Tersalin";button.setAttribute("aria-label","Tersalin");
+    window.setTimeout(()=>{{button.innerHTML=copyIcon;button.title=title;button.setAttribute("aria-label",title)}},1000);
+  }}
+  function showCopyFailed(button){{
+    const title=button.getAttribute("data-aog-copy-title")||"Salin";
+    button.title="Gagal menyalin";
+    window.setTimeout(()=>{{button.title=title}},1800);
+  }}
+  document.addEventListener("click",async(event)=>{{
+    const target=event.target instanceof Element?event.target:event.target&&event.target.parentElement;
+    const button=target&&target.closest("button[data-aog-copy-key]");
+    if(!button)return;
+    const copyKey=button.getAttribute("data-aog-copy-key");
+    const text=registry.contents[copyKey];
+    if(typeof text!=="string")return;
     try{{
-      if(navigator.clipboard&&window.isSecureContext)await navigator.clipboard.writeText(content);
-      else legacyCopy();
-      showCopied();
+      await copyContent(text);
+      showCopied(button);
     }}catch(_error){{
-      try{{legacyCopy();showCopied();}}catch(_clipboardError){{}}
+      try{{legacyCopy(text);showCopied(button);}}catch(_clipboardError){{showCopyFailed(button);}}
     }}
-  }});
+  }},true);
 }})();
 </script></div>"""
     if hasattr(st, "html"):
@@ -818,11 +849,18 @@ def set_council_feedback(index: int, rating: str):
     meta = dict(message.get("meta") or {}) if isinstance(message.get("meta"), dict) else {}
     if meta.get("feedback") == rating:
         meta.pop("feedback", None)
+        notice, icon = "Penilaian dibatalkan.", "↩️"
     else:
         meta["feedback"] = rating
+        if rating == "good":
+            notice, icon = "Terima kasih atas respons baikmu!", "✅"
+        else:
+            notice = "Terima kasih atas masukannya. Kami akan berusaha memperbaiki jawaban."
+            icon = "💬"
     message["meta"] = meta
     messages[index] = message
     ss["messages"] = messages
+    st.toast(notice, icon=icon)
 
 
 def show_council_process_in_machine(flow_snapshot: dict, question: str):
