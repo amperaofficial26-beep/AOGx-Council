@@ -1,43 +1,140 @@
-"""Mesin Council bergaya 'Neural Architect': kartu node di kanvas, partikel sinyal, bisa digeser.
+"""Mesin Council bergaya workflow (n8n): node persegi, kabel lengkung, cahaya berjalan.
 
-Berbeda dari ui/machine.py (SVG lewat st.markdown), modul ini membuat dokumen HTML dengan
-<canvas> + JavaScript lalu menampilkannya lewat st.components.v1.html, karena Streamlit tidak
-menjalankan <script> di dalam st.markdown. Status node dibaca dari CouncilFlow (sama seperti
-machine.py), jadi pipeline dan CouncilFlow tidak perlu diubah.
+Modul ini membuat dokumen HTML dengan <canvas> + JavaScript lalu menampilkannya lewat
+st.components.v1.html, karena Streamlit tidak menjalankan <script> di dalam st.markdown.
+Status node dibaca dari CouncilFlow, jadi pipeline dan CouncilFlow tidak perlu diubah.
+
+Alur pada kanvas:
+  Trigger (pertanyaan) -> Orchestrator (prompt) -> 3 agen paralel (Analis, Skeptis, Pakar;
+  masing-masing dengan sub-node Chat Model + Structured Output) -> Recall -> Processor
+  -> Penyusun (bundle) -> Verifier -> Jawaban final (success).
 
 Ada dua komponen terpisah:
-- show()      : kanvas "Mesin Council" selebar kolom penuh (kartu agen).
-- show_flow() : panel "Alur Council" (diagram keputusan), diletakkan app.py di bawah mesin,
-                bersampingan dengan "Jejak langkah".
+- show()      : kanvas "Mesin Council" selebar kolom penuh.
+- show_flow() : panel "Alur Council" (diagram keputusan), opsional.
 """
 import json
 
-from ui.flow import DEBATERS, NODES
-from ui.machine import CUBE_EDGES, STATE_WORD, debate_state, edge_cls, node_state, norm
+from ui.flow import DEBATERS, DONE, FAILED, PENDING, RUNNING, SKIPPED, NODES, _clip
+from ui.machine import STATE_WORD, debate_state, edge_cls, node_state, norm
 
-HEIGHT = 760        # tinggi awal iframe mesin; kanvas vertikal menyesuaikan lebar kolom
+HEIGHT = 460        # tinggi awal iframe mesin; JS menyesuaikan dengan lebar kolom
 FLOW_HEIGHT = 622   # tinggi awal iframe Alur Council
 
-# Posisi kartu pada kanvas mesin (viewBox 1000 x 940). Kanvas memakai seluruh lebar,
-# karena panel Alur Council sudah dipindah keluar dari kanvas ini.
-POS = {
-    "orchestrator": (150, 230),
-    "researcher":   (500, 230),
-    "expert":       (850, 230),
-    "analyst":      (150, 470),
-    "skeptic":      (500, 470),
-    "synthesizer":  (850, 470),
-    "verifier":     (500, 710),
+ORANGE, BLUE, TEAL = "#ff8a3d", "#4da3ff", "#2dd4bf"
+
+# Koordinat dunia (world) kanvas workflow. Kamera di JS menyesuaikan (fit / ikuti).
+MID_Y = 330
+LANES = {"analyst": 120, "skeptic": 330, "expert": 540}
+COL = {"start": 60, "orchestrator": 200, "agent": 430, "recall": 655, "proc": 785,
+       "synthesizer": 915, "verifier": 1045, "answer": 1175}
+SUB_DY = 100        # jarak vertikal agen -> sub-node (Chat Model / Structured Output)
+SUB_DX = 55         # geser horizontal sub-node dari pusat kartu agen
+
+AGENTS = {
+    # id: (nama, keterangan kartu, keterangan recall, ikon output)
+    "analyst": ("Analis", "Penalaran langkah", "Argumen", "wave"),
+    "skeptic": ("Skeptis", "Bantahan & risiko", "Bantahan", "wave"),
+    "expert":  ("Pakar", "Pengetahuan domain", "Wawasan", "code"),
 }
-START_POS = (150, 710)
-ANSWER_POS = (850, 710)
+PROC_ICON = {"analyst": "enter", "skeptic": "chev", "expert": "chev"}
 
 
-def _node(flow, name: str, x: int, y: int, label: str, sub: str) -> dict:
-    state = node_state(flow, name)
-    return {"id": name, "x": x, "y": y, "label": label, "sub": sub, "state": state,
-            "word": STATE_WORD[state], "prov": flow.providers.get(name, ""),
-            "dur": flow.durations.get(name, ""), "note": flow.notes.get(name, "")}
+def _status(flow) -> str:
+    if flow.error:
+        return "Berhenti karena galat"
+    if flow.finished:
+        return "Selesai"
+    return flow.stage_text or "Menunggu pertanyaan"
+
+
+def _lane_states(flow, agent: str) -> tuple:
+    """Status turunan untuk node Recall dan Processor pada jalur satu agen."""
+    a = node_state(flow, agent)
+    if a in (SKIPPED, FAILED):
+        return a, a
+    if a != DONE:
+        return PENDING, PENDING
+    syn = node_state(flow, "synthesizer")
+    started = flow.finished or syn in (RUNNING, DONE, FAILED)
+    return DONE, (DONE if started else RUNNING)
+
+
+def _node(flow, nid: str, kind: str, x: float, y: float, label: str, sub: str, icon: str,
+          accent: str, depth: int, state: str = "", src: str = "") -> dict:
+    src = src or nid
+    state = state or node_state(flow, src)
+    note = flow.notes.get(src, "")
+    if nid == "start":
+        note = _clip(flow.question, 90)
+    return {"id": nid, "kind": kind, "x": x, "y": y, "label": label, "sub": sub, "icon": icon,
+            "accent": accent, "depth": depth, "state": state,
+            "word": STATE_WORD.get(state, STATE_WORD[PENDING]),
+            "prov": flow.providers.get(src, ""), "dur": flow.durations.get(src, ""), "note": note}
+
+
+def payload(flow) -> dict:
+    """Data murni (JSON) untuk kanvas mesin; tidak memanggil Streamlit sehingga bisa diuji."""
+    nodes = [
+        _node(flow, "start", "square", COL["start"], MID_Y, "Pertanyaan Masuk", "Trigger",
+              "trigger", ORANGE, 0),
+        _node(flow, "orchestrator", "square", COL["orchestrator"], MID_Y, "Orchestrator",
+              "Buat prompt & rencana", "pencil", BLUE, 1),
+        _node(flow, "researcher", "circle", COL["orchestrator"], MID_Y + 118, "Researcher",
+              "Riset web · opsional", "search", BLUE, 1),
+    ]
+    for agent, (name, sub, recall_sub, out_icon) in AGENTS.items():
+        y = LANES[agent]
+        ax = COL["agent"]
+        recall_state, proc_state = _lane_states(flow, agent)
+        prov = flow.providers.get(agent, "")
+        nodes += [
+            _node(flow, agent, "card", ax, y, f"{name} Agent", sub, "robot", BLUE, 2),
+            _node(flow, f"{agent}_model", "circle", ax - SUB_DX, y + SUB_DY, "Chat Model",
+                  prov or "otomatis", "model", BLUE, 2, src=agent),
+            _node(flow, f"{agent}_parser", "circle", ax + SUB_DX, y + SUB_DY,
+                  "Structured Output", "Parsed", out_icon, BLUE, 2, src=agent),
+            _node(flow, f"{agent}_recall", "square", COL["recall"], y, f"Recall {name}",
+                  recall_sub, "pencil", ORANGE, 3, state=recall_state, src=agent),
+            _node(flow, f"{agent}_proc", "square", COL["proc"], y, f"Proses {name}",
+                  "Data Processor", PROC_ICON[agent], ORANGE, 4, state=proc_state, src=agent),
+        ]
+    score = "" if flow.score is None else f"skor {flow.score:.0%}"
+    nodes += [
+        _node(flow, "synthesizer", "square", COL["synthesizer"], MID_Y, "Penyusun",
+              "Bundle hasil diskusi", "merge", TEAL, 5),
+        _node(flow, "verifier", "square", COL["verifier"], MID_Y, "Verifier",
+              score or "Skor kualitas", "shield", TEAL, 6),
+        _node(flow, "answer", "square", COL["answer"], MID_Y, "Jawaban Final",
+              "Success status", "pencil", TEAL, 7),
+    ]
+    states = {n["id"]: n["state"] for n in nodes}
+
+    def edge(a, b, kind="main", label="", cls=None):
+        return {"a": a, "b": b, "kind": kind, "label": label,
+                "cls": cls or edge_cls(states[a], states[b])}
+
+    edges = [edge("start", "orchestrator"), edge("orchestrator", "researcher", "sub")]
+    for agent in AGENTS:
+        edges += [
+            edge("orchestrator", agent),
+            edge(agent, f"{agent}_model", "sub"),
+            edge(agent, f"{agent}_parser", "sub"),
+            edge(agent, f"{agent}_recall"),
+            edge(f"{agent}_recall", f"{agent}_proc"),
+            edge(f"{agent}_proc", "synthesizer"),
+        ]
+    if debate_state(flow) == SKIPPED and states["synthesizer"] != SKIPPED:
+        edges.append(edge("orchestrator", "synthesizer", "bypass", "sederhana"))
+    edges += [edge("synthesizer", "verifier"), edge("verifier", "answer", label="lolos"),
+              edge("verifier", "synthesizer", "back", "revisi",
+                   cls="hot" if flow.attempt > 0 else "faint")]
+
+    live = any(norm(flow.state(n)) == RUNNING for n in NODES if n != "start")
+    return {"status": _status(flow), "live": live, "finished": bool(flow.finished),
+            "error": bool(flow.error), "attempt": flow.attempt,
+            "sig": f"{getattr(flow, 't0', 0):.3f}:{flow.attempt}",
+            "nodes": nodes, "edges": edges, "debaters": list(DEBATERS)}
 
 
 def _graph(flow) -> dict:
@@ -78,35 +175,6 @@ def _graph(flow) -> dict:
     ]
     return {"boxes": boxes,
             "edges": [{"d": d, "cls": c, "label": lb, "lx": lx, "ly": ly} for d, c, lb, lx, ly in edges]}
-
-
-def payload(flow) -> dict:
-    """Data murni (JSON) untuk kanvas mesin; tidak memanggil Streamlit sehingga bisa diuji."""
-    if flow.error:
-        status = "Berhenti karena galat"
-    elif flow.finished:
-        status = "Selesai"
-    else:
-        status = flow.stage_text or "Menunggu pertanyaan"
-
-    nodes = [_node(flow, "start", START_POS[0], START_POS[1], "User Input", "Pertanyaan pengguna")]
-    for name, (x, y) in POS.items():
-        g = NODES[name]
-        nodes.append(_node(flow, name, x, y, g["label"], flow.notes.get(name) or g["sub"]))
-    nodes.append(_node(flow, "answer", ANSWER_POS[0], ANSWER_POS[1], "Jawaban final", "Council response"))
-
-    edges = [("start", "orchestrator", "", False), ("verifier", "answer", "", False)]
-    edges += [(s, d, lb, s == "verifier") for s, d, lb, _ in CUBE_EDGES]
-    out_edges = []
-    for src, dst, label, back in edges:
-        cls = edge_cls(node_state(flow, src), node_state(flow, dst))
-        if back:  # sisi revisi hanya menyala bila memang ada putaran ulang
-            cls = "hot" if flow.attempt > 0 else "idle"
-        out_edges.append({"src": src, "dst": dst, "label": label, "cls": cls, "back": back})
-
-    live = any(norm(flow.state(n)) == "running" for n in POS)
-    return {"status": status, "live": live, "nodes": nodes, "edges": out_edges,
-            "graph": _graph(flow), "debaters": list(DEBATERS)}
 
 
 def flow_payload(flow) -> dict:
@@ -210,148 +278,435 @@ TEMPLATE = r"""<!DOCTYPE html>
 <html lang="id"><head><meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
-  html,body{margin:0;padding:0;background:#030712;overflow:hidden;font-family:'Inter',sans-serif;}
-  #wrap{position:relative;box-sizing:border-box;width:100%;border-radius:16px;overflow:hidden;border:1px solid rgba(56,189,248,.15);
-        box-shadow:0 8px 32px rgba(0,0,0,.37);background:radial-gradient(ellipse at 50% 45%,#0c1a3a 0%,#050b18 60%,#030712 100%);}
-  canvas{display:block;cursor:grab;}
+  html,body{margin:0;padding:0;background:#0a0a0c;overflow:hidden;font-family:'Inter',sans-serif;}
+  #wrap{position:relative;box-sizing:border-box;width:100%;border-radius:16px;overflow:hidden;
+        border:1px solid rgba(255,255,255,.08);box-shadow:0 8px 32px rgba(0,0,0,.45);background:#0d0d10;}
+  canvas{display:block;cursor:grab;touch-action:none;}
   canvas.drag{cursor:grabbing;} canvas.hov{cursor:pointer;}
-  .scan{position:absolute;inset:0;pointer-events:none;
-        background:linear-gradient(to bottom,transparent 50%,rgba(6,182,212,.03) 51%);background-size:100% 4px;}
+  #ctl{position:absolute;top:10px;right:10px;display:flex;gap:6px;z-index:2;}
+  #ctl button{font:600 11px Inter,sans-serif;color:#d4d4d8;background:rgba(24,24,27,.86);
+        border:1px solid rgba(255,255,255,.12);border-radius:8px;padding:5px 9px;cursor:pointer;}
+  #ctl button:hover{border-color:rgba(77,163,255,.7);color:#fff;}
+  #ctl button.on{border-color:#4da3ff;color:#fff;box-shadow:0 0 10px rgba(77,163,255,.35);}
 </style></head>
-<body><div id="wrap"><canvas id="c"></canvas><div class="scan"></div></div>
+<body><div id="wrap"><canvas id="c"></canvas>
+<div id="ctl">
+  <button id="b-follow" title="Kamera mengikuti node yang aktif">Ikuti</button>
+  <button id="b-fit" title="Tampilkan seluruh alur">Fit</button>
+  <button id="b-out" title="Perkecil">&minus;</button>
+  <button id="b-in" title="Perbesar">+</button>
+</div></div>
 <svg style="position:absolute;width:0;height:0;visibility:hidden"><path id="meas" d="M0,0"/></svg>
 <script>
 __COMMON__
 const D = __DATA__;
-const VW = 1000, VH = 940, CW = 190, CH = 90;
-const THEME = {orchestrator:'#36cfff', verifier:'#36cfff', researcher:'#d45bff', skeptic:'#d45bff',
-               analyst:'#ffad38', expert:'#ffad38', synthesizer:'#ff5ca8', start:'#ff9e43', answer:'#ff6ba9'};
+const SQ = 66, CARD_W = 210, CARD_H = 66, SUB_R = 23, STEP = 0.5;
+const N = {}; D.nodes.forEach(n => {
+  if (n.kind === 'square') { n.w = SQ; n.h = SQ; }
+  else if (n.kind === 'card') { n.w = CARD_W; n.h = CARD_H; }
+  else { n.w = SUB_R * 2; n.h = SUB_R * 2; }
+  N[n.id] = n;
+});
 
-let scale = 1, W = 1000, H = VH;
+// ---------- ukuran iframe ----------
+let W = 600, H = 400;
 function resize() {
-  W = (document.documentElement.clientWidth || VW) - 2; scale = W / VW; H = Math.round(VH * scale);
+  W = Math.max(280, (document.documentElement.clientWidth || 600) - 2);
+  H = Math.round(Math.max(340, Math.min(620, W * B.h / B.w + 12)));
   cv.style.width = W + 'px'; cv.style.height = H + 'px';
   cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
-  sizeFrame(H + 2);
+  sizeFrame(H + 2); computeFit();
 }
+
+// ---------- geometri kabel (dihitung sekali, lalu disampel untuk animasi cahaya) ----------
+function outPort(n) { return n.kind === 'circle' ? [n.x + SUB_R, n.y] : [n.x + n.w / 2, n.y]; }
+function inPort(n) { return n.kind === 'circle' ? [n.x - SUB_R, n.y] : [n.x - n.w / 2, n.y]; }
+function pathFor(e) {
+  const a = N[e.a], b = N[e.b];
+  if (e.kind === 'sub') {  // dari port bawah agen ke atas sub-node
+    const x1 = b.x, y1 = a.y + a.h / 2, x2 = b.x, y2 = b.y - SUB_R;
+    if (a.kind !== 'card') return `M${a.x},${y1} L${a.x},${y2}`;
+    return `M${x1},${y1} L${x2},${y2}`;
+  }
+  if (e.kind === 'back') {
+    const x1 = a.x, y1 = a.y + a.h / 2 + 2, x2 = b.x, y2 = b.y + b.h / 2 + 2, dip = Math.max(y1, y2) + 70;
+    return `M${x1},${y1} C${x1},${dip} ${x2},${dip} ${x2},${y2}`;
+  }
+  if (e.kind === 'bypass') {
+    const x1 = a.x, y1 = a.y - a.h / 2, x2 = b.x, y2 = b.y - b.h / 2;
+    return `M${x1},${y1} C${x1},40 ${x2},40 ${x2},${y2}`;
+  }
+  const [x1, y1] = outPort(a), [x2, y2] = inPort(b), k = Math.max(40, (x2 - x1) * 0.5);
+  return `M${x1},${y1} C${x1 + k},${y1} ${x2 - k},${y2} ${x2},${y2}`;
+}
+D.edges.forEach(e => {
+  e.d = pathFor(e); e.p2d = new Path2D(e.d);
+  meas.setAttribute('d', e.d); const L = meas.getTotalLength(); e.len = L; e.pts = [];
+  for (let i = 0; i <= 80; i++) { const p = meas.getPointAtLength(L * i / 80); e.pts.push([p.x, p.y]); }
+  e.color = (N[e.b] && N[e.b].accent) || '#4da3ff';
+});
+function at(e, u) { u = Math.max(0, Math.min(1, u)); const f = u * 80, i = Math.floor(f), r = f - i;
+  const a = e.pts[i], b = e.pts[Math.min(80, i + 1)]; return [a[0] + (b[0] - a[0]) * r, a[1] + (b[1] - a[1]) * r]; }
+
+// ---------- batas dunia + kamera ----------
+const B = (() => { let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
+  D.nodes.forEach(n => { x0 = Math.min(x0, n.x - n.w / 2 - 40); x1 = Math.max(x1, n.x + n.w / 2 + (n.id === 'answer' ? 95 : 40));
+                         y0 = Math.min(y0, n.y - n.h / 2 - 30); y1 = Math.max(y1, n.y + n.h / 2 + 52); });
+  if (D.edges.some(e => e.kind === 'bypass')) y0 = Math.min(y0, 24);
+  return {x: x0, y: y0 - 58, w: x1 - x0, h: y1 - y0 + 58}; })();
+let FIT = {k: 1, x: 0, y: 0};
+function computeFit() { const k = Math.min(W / B.w, H / B.h);
+  FIT = {k, x: (W - B.w * k) / 2 - B.x * k, y: (H - B.h * k) / 2 - B.y * k}; }
+function focus(wx, wy) { const k = Math.min(1.0, Math.max(FIT.k * 1.3, Math.min(W / 760, H / 520)));
+  return {k, x: W / 2 - wx * k, y: H / 2 - wy * k + 8}; }
+
+const store = (() => { try { return window.sessionStorage; } catch (e) { return null; } })();
+function load(key, dflt) { try { const v = store && store.getItem(key); return v ? JSON.parse(v) : dflt; } catch (e) { return dflt; } }
+function save(key, v) { try { store && store.setItem(key, JSON.stringify(v)); } catch (e) {} }
+
 window.addEventListener('resize', resize); resize();
+let mode = load('aog_wf_mode', 'auto');
+let cam = load('aog_wf_cam', null) || Object.assign({}, FIT);
 
-// ---- node (posisi bisa digeser; disimpan di localStorage bila tersedia) ----
-const nodes = {}; D.nodes.forEach(n => { n.w = CW; n.h = CH; n.phase = Math.random() * 6.28; nodes[n.id] = n; });
-try { const sv = JSON.parse(localStorage.getItem('aog_pos3') || '{}');
-      for (const k in sv) if (nodes[k]) { nodes[k].x = sv[k][0]; nodes[k].y = sv[k][1]; } } catch (e) {}
-function savePos() { try { const o = {}; for (const k in nodes) o[k] = [Math.round(nodes[k].x), Math.round(nodes[k].y)];
-                           localStorage.setItem('aog_pos3', JSON.stringify(o)); } catch (e) {} }
+// Sapuan cahaya sekali dari trigger ke jawaban saat proses selesai (atau diputar ulang).
+const swept = load('aog_wf_swept', '');
+const sweepOn = D.finished && !D.error && !calm && swept !== D.sig;
+let t0 = null;
+if (sweepOn) save('aog_wf_swept', D.sig);
+const maxDepth = Math.max(...D.nodes.map(n => n.depth));
+const SWEEP_END = (maxDepth + 1) * STEP + 1.4;
+const colX = []; D.nodes.forEach(n => { colX[n.depth] = colX[n.depth] === undefined ? n.x : colX[n.depth]; });
 
-// ---- jalur kabel antar kartu (dihitung ulang tiap frame agar ikut saat digeser) ----
-function cablePath(a, b, back) {
-  const dx = b.x - a.x, dy = b.y - a.y;
-  const s = Math.min((CW / 2) / Math.max(Math.abs(dx), 1), (CH / 2) / Math.max(Math.abs(dy), 1));
-  let x1 = a.x + dx * s, y1 = a.y + dy * s, x2 = b.x - dx * s, y2 = b.y - dy * s;
-  if (back) {
-    const len = Math.hypot(dx, dy) || 1, nx = -dy / len, ny = dx / len, off = 48;
-    return `M${x1 + nx * 10},${y1 + ny * 10} Q${(x1 + x2) / 2 + nx * off},${(y1 + y2) / 2 + ny * off} ${x2 + nx * 10},${y2 + ny * 10}`;
+function camTarget(st) {
+  if (mode === 'manual') return null;
+  if (mode === 'fit') return FIT;
+  if (sweepOn && st < SWEEP_END - 0.6) {
+    const d = Math.min(maxDepth, st / STEP), i = Math.floor(d), r = d - i;
+    const x = colX[i] + ((colX[Math.min(maxDepth, i + 1)] || colX[i]) - colX[i]) * r;
+    return focus(x, 330);
   }
-  const mx = (x1 + x2) / 2;
-  return `M${x1},${y1} C${mx},${y1} ${mx},${y2} ${x2},${y2}`;
+  if (D.live) { const run = D.nodes.filter(n => n.state === 'running' && n.id !== 'start' && !/_model$|_parser$/.test(n.id));
+    if (run.length) { const x = run.reduce((s, n) => s + n.x, 0) / run.length;
+      const y = run.reduce((s, n) => s + n.y, 0) / run.length; return focus(x, y); } }
+  return FIT;
 }
 
-// ---- latar ----
-const stars = Array.from({length: 24}, (_, i) => ({x: 30 + (i * 173) % 940, y: 100 + (i * 197) % 800, r: 1 + (i % 3) * .5, p: i * .7}));
-function background(t) {
-  ctx.save(); ctx.fillStyle = 'rgba(56,189,248,.17)';
-  for (let x = 20; x < VW; x += 32) for (let y = 20; y < VH; y += 32) ctx.fillRect(x, y, 1.2, 1.2);
-  stars.forEach(s => { ctx.globalAlpha = calm ? .4 : .15 + .7 * (.5 + .5 * Math.sin(t * 1.4 + s.p));
-    ctx.fillStyle = '#c7aaff'; ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, 6.2832); ctx.fill(); });
+// ---------- ikon ----------
+function icon(name, x, y, s, col) {
+  ctx.save(); ctx.translate(x, y); ctx.strokeStyle = col; ctx.fillStyle = col;
+  ctx.lineWidth = 2.2; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  switch (name) {
+    case 'pencil':
+      ctx.rotate(-Math.PI / 4); ctx.beginPath(); ctx.moveTo(-s * .55, -s * .16); ctx.lineTo(s * .38, -s * .16);
+      ctx.lineTo(s * .38, s * .16); ctx.lineTo(-s * .55, s * .16); ctx.closePath(); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(-s * .62, -s * .16); ctx.lineTo(-s * .9, 0); ctx.lineTo(-s * .62, s * .16); ctx.closePath(); ctx.fill();
+      ctx.fillRect(s * .44, -s * .16, s * .14, s * .32); break;
+    case 'trigger':
+      ctx.beginPath(); ctx.moveTo(-s * .1, -s * .5); ctx.lineTo(-s * .55, -s * .5); ctx.lineTo(-s * .55, s * .5); ctx.lineTo(-s * .1, s * .5); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(-s * .25, 0); ctx.lineTo(s * .55, 0); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(s * .28, -s * .28); ctx.lineTo(s * .58, 0); ctx.lineTo(s * .28, s * .28); ctx.stroke(); break;
+    case 'robot':
+      rr(-s * .5, -s * .3, s, s * .72, s * .2); ctx.fill();
+      ctx.fillRect(-s * .06, -s * .55, s * .12, s * .25); ctx.beginPath(); ctx.arc(0, -s * .58, s * .1, 0, 6.2832); ctx.fill();
+      ctx.fillRect(-s * .68, -s * .05, s * .12, s * .3); ctx.fillRect(s * .56, -s * .05, s * .12, s * .3);
+      ctx.fillStyle = '#18181b'; ctx.beginPath(); ctx.arc(-s * .2, s * .04, s * .1, 0, 6.2832); ctx.arc(s * .2, s * .04, s * .1, 0, 6.2832); ctx.fill(); break;
+    case 'model':
+      ctx.beginPath(); ctx.moveTo(-s * .5, s * .45); ctx.lineTo(-s * .08, -s * .5); ctx.lineTo(s * .12, -s * .5); ctx.lineTo(-s * .12, s * .45); ctx.closePath(); ctx.fill();
+      ctx.globalAlpha = .75; ctx.beginPath(); ctx.moveTo(s * .02, -s * .2); ctx.lineTo(s * .52, s * .45); ctx.lineTo(-s * .05, s * .45); ctx.lineTo(s * .18, s * .12); ctx.closePath(); ctx.fill(); break;
+    case 'wave':
+      [-.42, -.21, 0, .21, .42].forEach((dx, i) => { const h = [.18, .42, .6, .42, .18][i] * s;
+        ctx.beginPath(); ctx.moveTo(dx * s, -h); ctx.lineTo(dx * s, h); ctx.stroke(); }); break;
+    case 'code':
+      ctx.beginPath(); ctx.moveTo(-s * .22, -s * .32); ctx.lineTo(-s * .52, 0); ctx.lineTo(-s * .22, s * .32); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(s * .22, -s * .32); ctx.lineTo(s * .52, 0); ctx.lineTo(s * .22, s * .32); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(s * .08, -s * .42); ctx.lineTo(-s * .08, s * .42); ctx.stroke(); break;
+    case 'chev':
+      ctx.lineWidth = 3; [-.24, .14].forEach(dx => { ctx.beginPath(); ctx.moveTo(dx * s, -s * .36);
+        ctx.lineTo((dx + .3) * s, 0); ctx.lineTo(dx * s, s * .36); ctx.stroke(); }); break;
+    case 'enter':
+      ctx.beginPath(); ctx.moveTo(s * .1, -s * .5); ctx.lineTo(s * .55, -s * .5); ctx.lineTo(s * .55, s * .5); ctx.lineTo(s * .1, s * .5); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(-s * .55, 0); ctx.lineTo(s * .25, 0); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(-s * .02, -s * .28); ctx.lineTo(s * .28, 0); ctx.lineTo(-s * .02, s * .28); ctx.stroke(); break;
+    case 'merge':
+      ctx.beginPath(); ctx.moveTo(-s * .38, -s * .38); ctx.lineTo(s * .38, 0); ctx.lineTo(-s * .38, s * .38);
+      ctx.moveTo(-s * .38, -s * .38); ctx.lineTo(-s * .38, s * .38); ctx.stroke();
+      [[-.38, -.38], [.38, 0], [-.38, .38]].forEach(p => { ctx.beginPath(); ctx.arc(p[0] * s, p[1] * s, s * .15, 0, 6.2832); ctx.fill(); }); break;
+    case 'shield':
+      ctx.beginPath(); ctx.moveTo(0, -s * .55); ctx.lineTo(s * .45, -s * .35); ctx.lineTo(s * .4, s * .15);
+      ctx.quadraticCurveTo(s * .3, s * .45, 0, s * .58); ctx.quadraticCurveTo(-s * .3, s * .45, -s * .4, s * .15);
+      ctx.lineTo(-s * .45, -s * .35); ctx.closePath(); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(-s * .18, 0); ctx.lineTo(-s * .03, s * .16); ctx.lineTo(s * .2, -s * .14); ctx.stroke(); break;
+    case 'search':
+      ctx.beginPath(); ctx.arc(-s * .08, -s * .08, s * .32, 0, 6.2832); ctx.stroke();
+      ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(s * .16, s * .16); ctx.lineTo(s * .46, s * .46); ctx.stroke(); break;
+  }
   ctx.restore();
 }
-function header(t) {
-  const col = D.live ? '#22d3ee' : (D.status === 'Selesai' ? '#34d399' : '#64748b');
-  ctx.save();
-  if (D.live && !calm) { const k = (t * 1.2) % 1; ctx.globalAlpha = 1 - k; ctx.strokeStyle = col;
-    ctx.beginPath(); ctx.arc(30, 27, 4 + k * 8, 0, 6.2832); ctx.stroke(); ctx.globalAlpha = 1; }
-  ctx.fillStyle = col; ctx.shadowColor = col; ctx.shadowBlur = 8; ctx.beginPath(); ctx.arc(30, 27, 4, 0, 6.2832); ctx.fill();
-  ctx.shadowBlur = 0; ctx.font = '700 15px ' + SANS; ctx.fillStyle = '#e0f2fe'; ctx.fillText('Mesin Council', 44, 32);
-  ctx.font = '500 11px ' + MONO; ctx.fillStyle = '#83dfff'; ctx.fillText(fit(D.status, 330), 44, 52);
+
+// ---------- gaya node menurut status ----------
+function look(n, t, boost) {
+  const s = n.state, L = {border: '#3f3f46', glow: 0, gcol: n.accent, a: 1, ico: '#a1a1aa',
+    fill: '#1b1b1f', text: '#e4e4e7', sub: '#71717a', lw: 1.4};
+  if (n.id === 'start' && s !== 'skipped') { L.border = n.accent; L.ico = n.accent; L.glow = 8; }
+  if (s === 'running') { L.border = n.accent; L.ico = '#ffffff'; L.fill = '#1a2131';
+    L.glow = 22 + (calm ? 0 : 8 * Math.sin(t * 4)); L.lw = 2.4; L.text = '#ffffff'; }
+  else if (s === 'done') { L.border = 'rgba(244,244,245,.75)'; L.ico = n.accent; L.glow = 6; L.gcol = 'rgba(255,255,255,.35)'; L.lw = 1.6; }
+  else if (s === 'failed') { L.border = '#f87171'; L.ico = '#f87171'; L.glow = 14; L.gcol = '#f87171'; }
+  else if (s === 'skipped') { L.a = .35; L.border = '#3f3f46'; L.ico = '#52525b'; }
+  if (boost > 0) { L.border = n.accent; L.gcol = n.accent; L.glow = Math.max(L.glow, 34 * boost); L.ico = n.accent; L.lw = 2.4; }
+  return L;
+}
+function badge(n, x, y) {
+  if (n.state !== 'done' && n.state !== 'failed') return;
+  ctx.save(); ctx.fillStyle = n.state === 'done' ? '#22c55e' : '#ef4444';
+  ctx.beginPath(); ctx.arc(x, y, 7, 0, 6.2832); ctx.fill();
+  ctx.strokeStyle = '#0d0d10'; ctx.lineWidth = 2; ctx.stroke();
+  ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.8; ctx.lineCap = 'round'; ctx.beginPath();
+  if (n.state === 'done') { ctx.moveTo(x - 3, y); ctx.lineTo(x - .8, y + 2.4); ctx.lineTo(x + 3.2, y - 2.4); }
+  else { ctx.moveTo(x - 2.6, y - 2.6); ctx.lineTo(x + 2.6, y + 2.6); ctx.moveTo(x + 2.6, y - 2.6); ctx.lineTo(x - 2.6, y + 2.6); }
+  ctx.stroke(); ctx.restore();
+}
+function port(x, y, on, col, square) {
+  ctx.save(); ctx.fillStyle = on ? col : '#52525b'; if (on) { ctx.shadowColor = col; ctx.shadowBlur = 8; }
+  if (square) ctx.fillRect(x - 3.5, y - 5, 7, 10); else { ctx.beginPath(); ctx.arc(x, y, 4.6, 0, 6.2832); ctx.fill(); }
+  ctx.restore();
+}
+function labels(n, y, L, size) {
+  ctx.save(); ctx.globalAlpha = L.a; ctx.textAlign = 'center';
+  ctx.font = `600 ${size}px ` + SANS; ctx.fillStyle = L.text; ctx.fillText(fit(n.label, 150), n.x, y);
+  ctx.font = `400 ${size - 2.5}px ` + SANS; ctx.fillStyle = L.sub; ctx.fillText(fit(n.sub, 150), n.x, y + size + 2);
+  ctx.restore();
+}
+function successRays(n, t, power) {
+  ctx.save(); ctx.translate(n.x, n.y);
+  const R = 70 + 30 * power, g = ctx.createRadialGradient(0, 0, 10, 0, 0, R * 1.5);
+  g.addColorStop(0, `rgba(45,212,191,${.35 + .25 * power})`); g.addColorStop(.5, 'rgba(45,212,191,.12)'); g.addColorStop(1, 'rgba(45,212,191,0)');
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, R * 1.5, 0, 6.2832); ctx.fill();
+  ctx.rotate(calm ? 0 : t * .15); ctx.strokeStyle = 'rgba(153,246,228,.55)'; ctx.lineCap = 'round';
+  for (let i = 0; i < 28; i++) { const a = i / 28 * 6.2832, r0 = 46 + (i % 3) * 4,
+    r1 = r0 + 14 + (i % 4) * 9 + (calm ? 0 : 6 * Math.sin(t * 2.2 + i)) + 24 * power;
+    ctx.globalAlpha = .25 + .45 * ((i % 3) / 2); ctx.lineWidth = 1 + (i % 2);
+    ctx.beginPath(); ctx.moveTo(Math.cos(a) * r0, Math.sin(a) * r0); ctx.lineTo(Math.cos(a) * r1, Math.sin(a) * r1); ctx.stroke(); }
   ctx.restore();
 }
 
-// ---- kartu agen ----
-function bob(n, t) { return calm ? 0 : Math.sin(t * 0.9 + n.phase) * 1.6; }
-let hover = null, drag = null, off = {x: 0, y: 0};
-function drawCard(n, t) {
-  const p = pal(n.state, THEME[n.id] || '#7661ff'), by = bob(n, t);
-  const x = n.x - CW / 2, y = n.y - CH / 2 + by, isH = hover === n || drag === n;
-  ctx.save();
-  if (n.state === 'running' && !calm) {  // cincin denyut seperti pada Neural Architect
-    const k = (t * 1.1) % 1, g = k * 18; ctx.globalAlpha = 1 - k; ctx.strokeStyle = p.glow; ctx.lineWidth = 2;
-    rr(x - g / 2, y - g / 2, CW + g, CH + g, 16 + g / 3); ctx.stroke(); ctx.globalAlpha = 1;
+function drawSquare(n, t, boost) {
+  const L = look(n, t, boost), x = n.x - SQ / 2, y = n.y - SQ / 2;
+  ctx.save(); ctx.globalAlpha = L.a;
+  if (L.glow) { ctx.shadowColor = L.gcol; ctx.shadowBlur = L.glow; }
+  ctx.fillStyle = L.fill; rr(x, y, SQ, SQ, 14); ctx.fill(); ctx.shadowBlur = 0;
+  ctx.lineWidth = L.lw; ctx.strokeStyle = L.border; if (n.state === 'skipped') ctx.setLineDash([4, 4]);
+  rr(x, y, SQ, SQ, 14); ctx.stroke(); ctx.setLineDash([]);
+  if (n.state === 'running' && !calm) { const k = (t * 1.1) % 1, g = k * 16; ctx.globalAlpha = (1 - k) * .8;
+    ctx.strokeStyle = n.accent; ctx.lineWidth = 2; rr(x - g / 2, y - g / 2, SQ + g, SQ + g, 14 + g / 3); ctx.stroke(); ctx.globalAlpha = L.a; }
+  icon(n.icon, n.x, n.y, 26, L.ico);
+  if (n.id === 'start') { ctx.font = '700 13px ' + SANS; ctx.fillStyle = n.accent; ctx.fillText('ϟ', x - 16, n.y + 5); }
+  const on = n.state === 'running' || n.state === 'done' || boost > 0;
+  if (n.id !== 'answer') port(x + SQ, n.y, on, n.accent, false);
+  if (n.id !== 'start') port(x, n.y, on, n.accent, true);
+  ctx.restore();
+  badge(n, x + SQ - 4, y + 4);
+  labels(n, y + SQ + 18, L, 13);
+}
+function drawCard(n, t, boost) {
+  const L = look(n, t, boost), x = n.x - CARD_W / 2, y = n.y - CARD_H / 2;
+  ctx.save(); ctx.globalAlpha = L.a;
+  if (L.glow) { ctx.shadowColor = L.gcol; ctx.shadowBlur = L.glow; }
+  ctx.fillStyle = L.fill; rr(x, y, CARD_W, CARD_H, 12); ctx.fill(); ctx.shadowBlur = 0;
+  ctx.lineWidth = L.lw; ctx.strokeStyle = L.border; if (n.state === 'skipped') ctx.setLineDash([4, 4]);
+  rr(x, y, CARD_W, CARD_H, 12); ctx.stroke(); ctx.setLineDash([]);
+  if ((n.state === 'running' || boost > .3) && !calm) {  // kilau berjalan di sisi atas kartu
+    const u = (t * .7) % 1, sx = x + 14 + u * (CARD_W - 28), g = ctx.createLinearGradient(sx - 50, 0, sx + 50, 0);
+    g.addColorStop(0, 'rgba(255,255,255,0)'); g.addColorStop(.5, 'rgba(255,255,255,.95)'); g.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.strokeStyle = g; ctx.lineWidth = 2.6; ctx.shadowColor = '#fff'; ctx.shadowBlur = 10;
+    ctx.beginPath(); ctx.moveTo(x + 12, y); ctx.lineTo(x + CARD_W - 12, y); ctx.stroke(); ctx.shadowBlur = 0;
   }
-  ctx.globalAlpha = p.a;
-  ctx.shadowColor = p.glow || 'rgba(0,0,0,.5)'; ctx.shadowBlur = isH ? 26 : (p.glow ? 18 : 8);
-  ctx.fillStyle = p.fill; rr(x, y, CW, CH, 14); ctx.fill();
-  ctx.shadowBlur = 0; ctx.lineWidth = isH ? 2.6 : (n.state === 'running' ? 2.4 : 1.6); ctx.strokeStyle = p.line;
-  if (n.state === 'skipped') ctx.setLineDash([5, 5]);
-  rr(x, y, CW, CH, 14); ctx.stroke(); ctx.setLineDash([]);
-  // penanda status (kiri) + header kecil
-  ctx.fillStyle = p.line; ctx.shadowColor = p.line; ctx.shadowBlur = n.state === 'skipped' ? 0 : 8;
-  ctx.beginPath(); ctx.arc(x + 16, n.y + by - 10, 4, 0, 6.2832); ctx.fill(); ctx.shadowBlur = 0;
-  ctx.textAlign = 'center';
-  ctx.font = '700 14px ' + SANS; ctx.fillStyle = p.text; ctx.fillText(fit(n.label, CW - 50), n.x + 4, y + 30);
-  ctx.font = '400 10px ' + MONO; ctx.fillStyle = p.sub; ctx.fillText(fit(n.sub, CW - 24), n.x, y + 47);
-  ctx.font = '600 9px ' + MONO; ctx.fillStyle = p.text;
-  const tag = [n.word, n.prov, n.dur].filter(Boolean).join(' · ');
-  ctx.fillText(fit(tag, CW - 24), n.x, y + 63);
-  // bar mini (sapuan saat berjalan, penuh saat selesai)
-  const bx = x + 12, bw = CW - 24, byy = y + CH - 14;
-  ctx.fillStyle = 'rgba(30,41,59,.85)'; rr(bx, byy, bw, 4, 2); ctx.fill();
-  if (n.state === 'done' || n.state === 'failed') { ctx.fillStyle = p.line; rr(bx, byy, bw, 4, 2); ctx.fill(); }
-  else if (n.state === 'running') {
-    ctx.save(); rr(bx, byy, bw, 4, 2); ctx.clip(); const seg = bw * .35, u = calm ? .3 : ((t * .8) % 1);
-    ctx.fillStyle = p.line; ctx.fillRect(bx + u * (bw + seg) - seg, byy, seg, 4); ctx.restore();
-  }
+  icon('robot', x + 30, n.y + 1, 24, L.ico === '#a1a1aa' ? '#d4d4d8' : L.ico);
+  ctx.textAlign = 'left'; ctx.font = '700 14px ' + SANS; ctx.fillStyle = L.text; ctx.fillText(fit(n.label, CARD_W - 70), x + 54, n.y - 3);
+  ctx.font = '400 10.5px ' + SANS; ctx.fillStyle = L.sub;
+  ctx.fillText(fit(n.state === 'running' && n.note ? n.note : n.sub, CARD_W - 70), x + 54, n.y + 13);
+  const on = n.state === 'running' || n.state === 'done' || boost > 0;
+  port(x + CARD_W, n.y, on, n.accent, false); port(x, n.y, on, n.accent, true);
+  // port bawah (Chat Model / Output) seperti sub-node n8n
+  ctx.font = '500 9px ' + SANS; ctx.textAlign = 'center';
+  [[-55, 'Model'], [0, 'Memori'], [55, 'Output']].forEach(([dx, lb]) => {
+    const px = n.x + dx, py = y + CARD_H; ctx.fillStyle = '#71717a'; ctx.fillText(lb, px, py + 15);
+    ctx.save(); ctx.translate(px, py); ctx.rotate(Math.PI / 4); ctx.fillStyle = on && dx ? n.accent : '#52525b';
+    ctx.fillRect(-3.5, -3.5, 7, 7); ctx.restore(); });
+  ctx.restore();
+  badge(n, x + CARD_W - 6, y + 6);
+}
+function drawCircle(n, t, boost) {
+  const L = look(n, t, boost);
+  ctx.save(); ctx.globalAlpha = L.a;
+  if (L.glow) { ctx.shadowColor = L.gcol; ctx.shadowBlur = L.glow * .8; }
+  ctx.fillStyle = L.fill; ctx.beginPath(); ctx.arc(n.x, n.y, SUB_R, 0, 6.2832); ctx.fill(); ctx.shadowBlur = 0;
+  ctx.lineWidth = L.lw; ctx.strokeStyle = L.border; if (n.state === 'skipped') ctx.setLineDash([4, 4]);
+  ctx.beginPath(); ctx.arc(n.x, n.y, SUB_R, 0, 6.2832); ctx.stroke(); ctx.setLineDash([]);
+  icon(n.icon, n.x, n.y, 18, n.icon === 'model' && L.ico === '#a1a1aa' ? '#4da3ff' : L.ico);
+  ctx.restore();
+  labels(n, n.y + SUB_R + 15, L, 11);
+}
+
+// ---------- kabel ----------
+const ESTYLE = {
+  idle:  {c: 'rgba(161,161,170,.38)', w: 1.5},
+  faint: {c: 'rgba(113,113,122,.22)', w: 1.2, dash: [4, 6]},
+  skip:  {c: 'rgba(82,82,91,.28)', w: 1.2, dash: [4, 6]},
+  hot:   {c: 'rgba(228,228,231,.62)', w: 1.8},
+  live:  {c: null, w: 2.2},
+  bad:   {c: 'rgba(248,113,113,.75)', w: 1.8},
+};
+function comet(e, u, col, a, size) {
+  if (u <= 0 || u > 1.15) return; const tail = .28, n = 16;
+  ctx.save(); ctx.lineCap = 'round';
+  for (let k = n; k >= 0; k--) { const uu = u - tail * k / n; if (uu < 0 || uu > 1) continue;
+    const [x, y] = at(e, uu), f = 1 - k / n;
+    ctx.globalAlpha = a * f; ctx.fillStyle = k === 0 ? '#ffffff' : col; ctx.shadowColor = col; ctx.shadowBlur = 14 * f;
+    ctx.beginPath(); ctx.arc(x, y, (size || 3.4) * (.35 + .65 * f), 0, 6.2832); ctx.fill(); }
   ctx.restore();
 }
+function drawEdgeBase(e, t, glowA) {
+  const s = ESTYLE[e.cls] || ESTYLE.idle;
+  ctx.save(); ctx.lineCap = 'round'; ctx.lineWidth = s.w; ctx.setLineDash(s.dash || []);
+  if (e.kind === 'sub') ctx.setLineDash([3, 4]);
+  ctx.strokeStyle = s.c || e.color;
+  if (e.cls === 'live') { ctx.globalAlpha = .8; ctx.shadowColor = e.color; ctx.shadowBlur = 10; }
+  ctx.stroke(e.p2d);
+  if (glowA > 0) { ctx.globalAlpha = glowA; ctx.strokeStyle = e.color; ctx.lineWidth = 2.6; ctx.setLineDash([]);
+    ctx.shadowColor = e.color; ctx.shadowBlur = 14; ctx.stroke(e.p2d); }
+  ctx.restore();
+  if (e.kind !== 'sub' && e.kind !== 'back' && e.kind !== 'bypass') {  // panah kecil di ujung
+    const [x2, y2] = at(e, 1), [x1, y1] = at(e, .96), ang = Math.atan2(y2 - y1, x2 - x1);
+    if (e.cls === 'live' || e.cls === 'hot') { ctx.save(); ctx.translate(x2 - 5, y2); ctx.rotate(ang);
+      ctx.fillStyle = e.cls === 'live' ? e.color : 'rgba(228,228,231,.7)';
+      ctx.beginPath(); ctx.moveTo(-6, -4); ctx.lineTo(1, 0); ctx.lineTo(-6, 4); ctx.closePath(); ctx.fill(); ctx.restore(); }
+  }
+  if (e.label && (e.cls !== 'faint' || e.kind === 'back')) {
+    const [lx, ly] = at(e, .5); ctx.save(); ctx.font = '500 10px ' + SANS; ctx.textAlign = 'center';
+    ctx.fillStyle = e.cls === 'hot' || e.cls === 'live' ? '#d4d4d8' : '#52525b';
+    ctx.fillText(e.label, lx + (e.kind === 'sub' ? 30 : 0), ly + (e.kind === 'back' ? 14 : (e.kind === 'sub' ? 3 : -8))); ctx.restore();
+  }
+}
+
+// ---------- latar: grid titik + bintang kecil ----------
+function grid() {
+  const k = cam.k, step = 24 * k; if (step < 6) return;
+  ctx.save(); ctx.fillStyle = 'rgba(255,255,255,.07)';
+  const ox = ((cam.x % step) + step) % step, oy = ((cam.y % step) + step) % step;
+  for (let x = ox; x < W; x += step) for (let y = oy; y < H; y += step) ctx.fillRect(x - .6, y - .6, 1.3, 1.3);
+  ctx.restore();
+}
+function sparkle(x, y, r, a) {
+  ctx.save(); ctx.globalAlpha = a; ctx.fillStyle = '#e4e4e7'; ctx.shadowColor = '#fff'; ctx.shadowBlur = 8;
+  ctx.beginPath(); ctx.moveTo(x, y - r); ctx.quadraticCurveTo(x, y, x + r, y); ctx.quadraticCurveTo(x, y, x, y + r);
+  ctx.quadraticCurveTo(x, y, x - r, y); ctx.quadraticCurveTo(x, y, x, y - r); ctx.fill(); ctx.restore();
+}
+function header() {
+  const col = D.error ? '#f87171' : (D.live ? '#4da3ff' : (D.finished ? '#2dd4bf' : '#71717a'));
+  ctx.save(); const g = ctx.createLinearGradient(0, 0, 0, 64); g.addColorStop(0, 'rgba(13,13,16,.95)'); g.addColorStop(1, 'rgba(13,13,16,0)');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, 64);
+  ctx.fillStyle = col; ctx.shadowColor = col; ctx.shadowBlur = 8; ctx.beginPath(); ctx.arc(20, 22, 4, 0, 6.2832); ctx.fill();
+  ctx.shadowBlur = 0; ctx.textAlign = 'left'; ctx.font = '700 14px ' + SANS; ctx.fillStyle = '#f4f4f5'; ctx.fillText('Mesin Council', 32, 27);
+  ctx.font = '500 11px ' + MONO; ctx.fillStyle = col === '#71717a' ? '#a1a1aa' : col; ctx.fillText(fit(D.status, Math.max(120, W - 260)), 32, 45);
+  ctx.restore();
+}
+let hover = null;
 function tooltip() {
-  if (!hover) return; const n = hover, rows = [['STATUS', n.word], ['PROVIDER', n.prov || '—'], ['DURASI', n.dur || '—']];
-  const w = 230, note = String(n.note || n.sub || ''), h = 84 + (note ? 30 : 0);
-  let x = n.x + CW / 2 + 12, y = n.y - 40; if (x + w > VW - 6) x = n.x - CW / 2 - w - 12;
-  y = Math.max(8, Math.min(VH - h - 8, y));
-  ctx.save(); ctx.fillStyle = 'rgba(15,23,42,.96)'; ctx.strokeStyle = 'rgba(56,189,248,.35)'; ctx.lineWidth = 1;
-  ctx.shadowColor = 'rgba(56,189,248,.25)'; ctx.shadowBlur = 16; rr(x, y, w, h, 12); ctx.fill(); ctx.shadowBlur = 0; ctx.stroke();
-  ctx.font = '700 11px ' + MONO; ctx.fillStyle = '#a5f3fc'; ctx.fillText(n.label.toUpperCase(), x + 12, y + 20);
+  if (!hover) return; const n = hover;
+  const rows = [['STATUS', n.word], ['PROVIDER', n.prov || '—'], ['DURASI', n.dur || '—']];
+  const note = String(n.note || ''), w = 236, h = 82 + (note ? 30 : 0);
+  let x = n.x * cam.k + cam.x + n.w / 2 * cam.k + 12, y = n.y * cam.k + cam.y - 40;
+  if (x + w > W - 6) x = n.x * cam.k + cam.x - n.w / 2 * cam.k - w - 12;
+  x = Math.max(6, x); y = Math.max(8, Math.min(H - h - 8, y));
+  ctx.save(); ctx.fillStyle = 'rgba(24,24,27,.97)'; ctx.strokeStyle = 'rgba(255,255,255,.14)'; ctx.lineWidth = 1;
+  ctx.shadowColor = 'rgba(0,0,0,.5)'; ctx.shadowBlur = 16; rr(x, y, w, h, 10); ctx.fill(); ctx.shadowBlur = 0; ctx.stroke();
+  ctx.textAlign = 'left'; ctx.font = '700 11px ' + MONO; ctx.fillStyle = n.accent; ctx.fillText(n.label.toUpperCase(), x + 12, y + 20);
   ctx.font = '400 10px ' + MONO;
-  rows.forEach((r, i) => { ctx.fillStyle = '#64748b'; ctx.fillText(r[0], x + 12, y + 40 + i * 15);
-                           ctx.fillStyle = '#e2e8f0'; ctx.fillText(fit(r[1], 130), x + 90, y + 40 + i * 15); });
-  if (note) { ctx.fillStyle = '#94a3b8'; ctx.font = '400 9.5px ' + MONO;
-    const a = note.slice(0, 34), b = note.slice(34, 68); ctx.fillText(a, x + 12, y + 92); if (b) ctx.fillText(b, x + 12, y + 104); }
+  rows.forEach((r, i) => { ctx.fillStyle = '#71717a'; ctx.fillText(r[0], x + 12, y + 40 + i * 14);
+    ctx.fillStyle = '#e4e4e7'; ctx.fillText(fit(r[1], 130), x + 90, y + 40 + i * 14); });
+  if (note) { ctx.fillStyle = '#a1a1aa'; ctx.font = '400 9.5px ' + MONO;
+    ctx.fillText(note.slice(0, 36), x + 12, y + 90); if (note.length > 36) ctx.fillText(fit(note.slice(36), w - 24), x + 12, y + 103); }
   ctx.restore();
 }
 
-// ---- loop utama ----
+// ---------- loop utama ----------
 function frame(ms) {
-  const t = ms / 1000; ctx.setTransform(dpr * scale, 0, 0, dpr * scale, 0, 0); ctx.clearRect(0, 0, VW, VH);
-  background(t); header(t);
-  D.edges.forEach(e => { const a = nodes[e.src], b = nodes[e.dst];
-    drawEdge(cablePath(a, b, e.back), e.cls, t, e.label, undefined, undefined); });
-  D.nodes.forEach(n => drawCard(n, t));
-  tooltip();
+  const t = ms / 1000; if (t0 === null) t0 = t; const st = t - t0;
+  const tgt = camTarget(st);
+  if (tgt) { const f = calm ? 1 : .07; cam.k += (tgt.k - cam.k) * f; cam.x += (tgt.x - cam.x) * f; cam.y += (tgt.y - cam.y) * f; }
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, W, H);
+  ctx.fillStyle = '#0d0d10'; ctx.fillRect(0, 0, W, H); grid();
+  ctx.setTransform(dpr * cam.k, 0, 0, dpr * cam.k, dpr * cam.x, dpr * cam.y);
+
+  const sweeping = sweepOn && st < SWEEP_END;
+  const boostOf = n => { if (!sweeping) return 0; const d = st - n.depth * STEP;
+    return d < -0.05 ? 0 : Math.max(0, 1 - Math.abs(d) / (STEP * 1.6)); };
+
+  // kabel: dasar + cahaya
+  D.edges.forEach(e => {
+    let glowA = 0;
+    if (sweeping && e.kind !== 'back' && N[e.a]) { const d = N[e.a].depth, u = (st - d * STEP) / STEP;
+      if (e.kind === 'sub') glowA = Math.max(0, 1 - Math.abs(u - .5) * 1.4) * .7;
+      else if (u > 0 && u < 2.2) glowA = Math.max(0, .55 - (u - 1) * .35) * (u < 1 ? u : 1); }
+    drawEdgeBase(e, t, glowA);
+  });
+  D.edges.forEach(e => {
+    if (sweeping && e.kind !== 'back' && e.kind !== 'sub') {
+      const u = (st - N[e.a].depth * STEP) / STEP; comet(e, u, e.color, 1, 4);
+    } else if (!calm) {
+      if (e.cls === 'live') { const sp = e.kind === 'sub' ? .9 : .7; comet(e, (t * sp) % 1.15, e.color, 1, 3.6);
+        comet(e, (t * sp + .55) % 1.15, e.color, .7, 3); }
+      else if (e.cls === 'hot' && e.kind !== 'sub') comet(e, (t * .22 + e.len * .003) % 1.6, e.color, .45, 2.6);
+    }
+  });
+
+  // node
+  const ans = N.answer;
+  if (ans && ans.state === 'done' && !D.error) {
+    const p = sweeping ? Math.max(0, 1 - Math.abs(st - ans.depth * STEP - .25) / .9) : 0;
+    if (!sweeping || st > ans.depth * STEP - .2) successRays(ans, t, p);
+  }
+  D.nodes.forEach(n => { const b = boostOf(n);
+    if (n.kind === 'square') drawSquare(n, t, b); else if (n.kind === 'card') drawCard(n, t, b); else drawCircle(n, t, b); });
+
+  // lapisan layar
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  header(); tooltip();
+  sparkle(W - 26, H - 26, 9, calm ? .8 : .55 + .35 * Math.sin(t * 1.6));
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
 
-// ---- interaksi: hover untuk detail, seret untuk memindahkan node ----
-function pos(e) { const r = cv.getBoundingClientRect(); return {x: (e.clientX - r.left) / scale, y: (e.clientY - r.top) / scale}; }
-function pick(p) { for (let i = D.nodes.length - 1; i >= 0; i--) { const n = D.nodes[i];
-  if (Math.abs(p.x - n.x) <= CW / 2 && Math.abs(p.y - n.y) <= CH / 2) return n; } return null; }
-cv.addEventListener('mousedown', e => { const p = pos(e), n = pick(p); if (n) { drag = n; off = {x: p.x - n.x, y: p.y - n.y}; cv.className = 'drag'; } });
-cv.addEventListener('mousemove', e => { const p = pos(e);
-  if (drag) { drag.x = Math.max(CW / 2, Math.min(VW - CW / 2, p.x - off.x)); drag.y = Math.max(CH / 2, Math.min(VH - CH / 2, p.y - off.y)); return; }
+// ---------- interaksi: Ctrl/⌘+scroll zoom, seret untuk geser, klik ganda kembali otomatis ----------
+const bF = document.getElementById('b-follow'), bFit = document.getElementById('b-fit');
+function setMode(m) { mode = m; save('aog_wf_mode', m); bF.className = m === 'auto' ? 'on' : ''; bFit.className = m === 'fit' ? 'on' : ''; }
+setMode(mode);
+setInterval(() => save('aog_wf_cam', {k: cam.k, x: cam.x, y: cam.y}), 500);
+function zoomAt(px, py, f) { const k = Math.max(.25, Math.min(2.5, cam.k * f));
+  cam.x = px - (px - cam.x) * (k / cam.k); cam.y = py - (py - cam.y) * (k / cam.k); cam.k = k; setMode('manual'); }
+bF.onclick = () => setMode('auto'); bFit.onclick = () => setMode('fit');
+document.getElementById('b-in').onclick = () => zoomAt(W / 2, H / 2, 1.2);
+document.getElementById('b-out').onclick = () => zoomAt(W / 2, H / 2, 1 / 1.2);
+function spos(e) { const r = cv.getBoundingClientRect(); return {x: e.clientX - r.left, y: e.clientY - r.top}; }
+function pick(p) { const wx = (p.x - cam.x) / cam.k, wy = (p.y - cam.y) / cam.k;
+  for (let i = D.nodes.length - 1; i >= 0; i--) { const n = D.nodes[i];
+    if (Math.abs(wx - n.x) <= n.w / 2 && Math.abs(wy - n.y) <= n.h / 2) return n; } return null; }
+let drag = null;
+cv.addEventListener('wheel', e => { if (!(e.ctrlKey || e.metaKey)) return; e.preventDefault();
+  const p = spos(e); zoomAt(p.x, p.y, Math.exp(-e.deltaY * .0025)); }, {passive: false});
+cv.addEventListener('pointerdown', e => { const p = spos(e); drag = {x: p.x, y: p.y, cx: cam.x, cy: cam.y, moved: false};
+  cv.setPointerCapture(e.pointerId); });
+cv.addEventListener('pointermove', e => { const p = spos(e);
+  if (drag) { const dx = p.x - drag.x, dy = p.y - drag.y;
+    if (drag.moved || Math.abs(dx) + Math.abs(dy) > 4) { drag.moved = true; setMode('manual');
+      cam.x = drag.cx + dx; cam.y = drag.cy + dy; cv.className = 'drag'; } return; }
   hover = pick(p); cv.className = hover ? 'hov' : ''; });
-cv.addEventListener('mouseleave', () => { hover = null; });
-window.addEventListener('mouseup', () => { if (drag) { drag = null; cv.className = ''; savePos(); } });
+cv.addEventListener('pointerup', () => { drag = null; cv.className = hover ? 'hov' : ''; });
+cv.addEventListener('pointerleave', () => { hover = null; });
+cv.addEventListener('dblclick', () => setMode('auto'));
 </script></body></html>
 """
 
