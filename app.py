@@ -62,7 +62,11 @@ def select_topbar_page(page: str):
 
 
 def render_topbar():
-    """Top navigation; unfinished destinations intentionally render as empty pages."""
+    """Edge-to-edge glass navigation fixed to the top of the viewport.
+
+    The six destinations keep their existing callbacks. On compact screens the
+    labels become visually hidden (not removed) so icon buttons stay accessible.
+    """
     pages = [
         ("Council", "AOGx Council", ":material/home:"),
         ("Agent code", "AOGx Agent Code", ":material/code:"),
@@ -71,22 +75,43 @@ def render_topbar():
         ("Account", "Kartu Akun", ":material/account_circle:"),
         ("Settings", "Pengaturan", ":material/settings:"),
     ]
+    provider_count = len(active_provider_names)
+    is_demo = bool(ss.get("demo", provider_count == 0))
+    status_text = "Demo" if is_demo else f"{provider_count} aktif"
+    status_title = ("Mode demo: belum ada API key provider."
+                    if is_demo else f"{provider_count} provider AI aktif.")
+    logo = _logo_img() or '<span class="aog-topbar-logo-fallback">A</span>'
     with st.container(key="aog-topbar"):
-        brand_col, nav_col = st.columns([2.2, 7.8], gap="medium", vertical_alignment="center")
-        with brand_col:
-            render_brand_header()
+        brand_col, nav_col, status_col = st.columns(
+            [2.05, 6.7, 1.25], gap="medium", vertical_alignment="center")
+        with brand_col, st.container(key="aog-topbar-brand"):
+            st.markdown(
+                '<div class="aog-topbar-brand">'
+                f'<span class="aog-topbar-logo">{logo}</span>'
+                '<span class="aog-topbar-wordmark">'
+                '<strong>AOGx <em>Council</em></strong>'
+                '<small>Multi-agent workspace</small>'
+                '</span></div>',
+                unsafe_allow_html=True,
+            )
         with nav_col, st.container(key="aog-nav"):
-            # Bar gelap dengan lekukan (notch) + lingkaran hijau yang bergeser ke menu aktif.
-            # Posisinya diatur CSS lewat :has(button[kind="primary"]), jadi tanpa JavaScript.
             nav_cols = st.columns(len(pages), gap="small", vertical_alignment="center")
             for col, (key, label, icon) in zip(nav_cols, pages):
                 with col:
                     st.button(
-                        label, key=f"topbar_{key}", icon=icon,
+                        label, key=f"topbar_{key}", icon=icon, help=label,
                         type="primary" if ss.get("active_topbar_page") == label else "secondary",
                         use_container_width=True,
                         on_click=select_topbar_page, args=(label,),
                     )
+        with status_col, st.container(key="aog-topbar-status"):
+            state = "demo" if is_demo else "live"
+            st.markdown(
+                f'<div class="aog-topbar-status {state}" title="{status_title}">'
+                '<span class="aog-status-dot"></span>'
+                f'<span>{status_text}</span></div>',
+                unsafe_allow_html=True,
+            )
 
 
 st.set_page_config(page_title="AOGx Council", page_icon=":material/hub:", layout="wide",
@@ -241,86 +266,175 @@ body:has(.aog-council-chat-started) .aog-council-hero {
 }
 .aog-council-chat-started { display:none !important; }
 .aog-council-empty-spacer { width:100%; height:clamp(150px,26vh,260px); }
-/* ---------- Top bar: bar gelap berlekuk + lingkaran aktif yang bergeser ---------- */
-@property --aog-f { syntax:'<number>'; inherits:true; initial-value:.0833; }
+/* ---------- Top bar: glass command bar, full-bleed and pinned to the viewport ---------- */
+:root { --aog-topbar-height:76px; }
+html, .stMain { scroll-padding-top:calc(var(--aog-topbar-height) + 12px) !important; }
+body:has(.st-key-aog-topbar) [data-testid="stMainBlockContainer"],
+body:has(.st-key-aog-topbar) [data-testid="stAppViewBlockContainer"] {
+    padding-top:calc(var(--aog-topbar-height) + 22px) !important;
+}
+[data-testid="stLayoutWrapper"]:has(> .st-key-aog-topbar) {
+    height:0 !important; min-height:0 !important; flex:0 0 0 !important;
+    margin:0 !important; overflow:visible !important;
+}
 .st-key-aog-topbar {
-    width:100% !important; box-sizing:border-box !important; margin-bottom:1rem !important;
-    padding:.35rem .2rem 0 !important; background:transparent !important; border:0 !important;
+    position:fixed !important; top:0 !important; left:0 !important; right:0 !important;
+    width:100vw !important; max-width:100vw !important; height:var(--aog-topbar-height) !important;
+    z-index:1000 !important; margin:0 !important; box-sizing:border-box !important;
+    padding:0 clamp(14px,2.2vw,34px) !important; overflow:visible !important;
+    display:flex !important; flex-direction:row !important; align-items:center !important;
+    background:linear-gradient(180deg,rgba(10,15,25,.97),rgba(7,12,20,.93)) !important;
+    border:0 !important; border-bottom:1px solid rgba(148,163,184,.16) !important;
+    box-shadow:0 10px 34px rgba(0,0,0,.38), inset 0 -1px rgba(255,255,255,.02) !important;
+    -webkit-backdrop-filter:blur(22px) saturate(150%); backdrop-filter:blur(22px) saturate(150%);
 }
-.st-key-aog-topbar [data-testid="stHorizontalBlock"] { align-items:center !important; }
+.st-key-aog-topbar::before {
+    content:""; position:absolute; top:0; left:0; right:0; height:1px; pointer-events:none;
+    background:linear-gradient(90deg,transparent,rgba(56,189,248,.75) 28%,rgba(94,234,212,.75) 62%,transparent);
+}
+.st-key-aog-topbar::after {
+    content:""; position:absolute; inset:0; pointer-events:none; z-index:-1;
+    background:radial-gradient(520px 90px at 18% 0%,rgba(56,189,248,.10),transparent 70%),
+               radial-gradient(520px 90px at 82% 0%,rgba(45,212,191,.08),transparent 70%);
+}
+.st-key-aog-topbar > [data-testid="stLayoutWrapper"] { width:100%; }
+.st-key-aog-topbar [data-testid="stHorizontalBlock"] {
+    width:100% !important; align-items:center !important; flex-wrap:nowrap !important;
+    gap:clamp(10px,1.6vw,24px) !important;
+}
+.st-key-aog-topbar [data-testid="stColumn"] { min-width:0 !important; }
+.st-key-aog-topbar > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:nth-child(1) {
+    flex:0 0 250px !important; width:250px !important;
+}
+.st-key-aog-topbar > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:nth-child(2) {
+    flex:1 1 auto !important; width:auto !important;
+}
+.st-key-aog-topbar > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:nth-child(3) {
+    flex:0 0 104px !important; width:104px !important;
+}
+.st-key-aog-topbar-brand, .st-key-aog-topbar-status { width:100%; }
+.aog-topbar-brand { display:flex; align-items:center; gap:12px; min-width:0; }
+.aog-topbar-logo {
+    display:flex; align-items:center; justify-content:center; flex:0 0 42px;
+    width:42px; height:42px; border-radius:13px;
+    background:linear-gradient(145deg,#182438,#0b1220);
+    border:1px solid rgba(125,211,252,.22);
+    box-shadow:inset 0 1px rgba(255,255,255,.08), 0 0 22px rgba(56,189,248,.12);
+}
+.aog-topbar-logo img { display:block; width:29px; height:29px; object-fit:contain;
+    filter:drop-shadow(0 0 8px rgba(94,234,212,.28)); }
+.aog-topbar-logo-fallback { color:#e0f2fe; font-weight:800; font-size:20px; }
+.aog-topbar-wordmark { display:flex; flex-direction:column; gap:3px; min-width:0; }
+.aog-topbar-wordmark strong { color:#f8fafc; font-size:18px; font-weight:800;
+    letter-spacing:.2px; line-height:1.1; white-space:nowrap; }
+.aog-topbar-wordmark em { font-style:normal; color:#7dd3fc; }
+.aog-topbar-wordmark small { color:#64748b; font-size:9px; font-weight:700;
+    letter-spacing:1.6px; text-transform:uppercase; white-space:nowrap; }
 .st-key-aog-nav {
-    --aog-f:.0833; position:relative !important; margin-top:24px !important; height:68px !important;
-    transition:--aog-f .6s cubic-bezier(.65,0,.35,1);
-}
-.st-key-aog-nav:has([data-testid="stColumn"]:nth-child(2) button[kind="primary"]) { --aog-f:.25; }
-.st-key-aog-nav:has([data-testid="stColumn"]:nth-child(3) button[kind="primary"]) { --aog-f:.4167; }
-.st-key-aog-nav:has([data-testid="stColumn"]:nth-child(4) button[kind="primary"]) { --aog-f:.5833; }
-.st-key-aog-nav:has([data-testid="stColumn"]:nth-child(5) button[kind="primary"]) { --aog-f:.75; }
-.st-key-aog-nav:has([data-testid="stColumn"]:nth-child(6) button[kind="primary"]) { --aog-f:.9167; }
-.st-key-aog-nav::before {
-    content:""; position:absolute; inset:0; z-index:0; pointer-events:none; border-radius:20px;
-    background:linear-gradient(180deg,#252f44,#1a2233);
-    box-shadow:inset 0 1px rgba(255,255,255,.07);
-    -webkit-mask-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='46' viewBox='0 0 120 46'%3E%3Cpath d='M0 0H120V1C104 1 99 4 95 13C87 34 75 43 60 43C45 43 33 34 25 13C21 4 16 1 0 1Z'/%3E%3C/svg%3E"), linear-gradient(#000 0 0);
-    -webkit-mask-repeat:no-repeat; -webkit-mask-size:120px 46px, 100% 100%;
-    -webkit-mask-position:calc(var(--aog-f) * 100% + (var(--aog-f) - .5) * 120px) -1px, 0 0;
-    -webkit-mask-composite:xor;
-    mask-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='46' viewBox='0 0 120 46'%3E%3Cpath d='M0 0H120V1C104 1 99 4 95 13C87 34 75 43 60 43C45 43 33 34 25 13C21 4 16 1 0 1Z'/%3E%3C/svg%3E"), linear-gradient(#000 0 0);
-    mask-repeat:no-repeat; mask-size:120px 46px, 100% 100%;
-    mask-position:calc(var(--aog-f) * 100% + (var(--aog-f) - .5) * 120px) -1px, 0 0;
-    mask-composite:exclude;
-}
-.st-key-aog-nav::after {
-    content:""; position:absolute; z-index:1; pointer-events:none; top:-21px;
-    left:calc(var(--aog-f) * 100%); width:50px; height:50px; border-radius:50%;
-    transform:translateX(-50%);
-    background:radial-gradient(circle at 35% 30%,#9dff7f,#5ee43b 55%,#41c522);
-    box-shadow:0 3px 10px rgba(94,228,59,.28), 0 0 0 1px rgba(255,255,255,.1) inset;
+    position:relative !important; width:100% !important; height:52px !important;
+    padding:5px !important; box-sizing:border-box !important; border-radius:16px !important;
+    background:rgba(15,23,42,.72) !important; border:1px solid rgba(148,163,184,.13) !important;
+    box-shadow:inset 0 1px rgba(255,255,255,.04), 0 8px 24px rgba(0,0,0,.16) !important;
 }
 .st-key-aog-nav [data-testid="stHorizontalBlock"] {
-    position:relative; z-index:2; gap:0 !important; flex-wrap:nowrap !important; height:68px;
+    position:relative; z-index:1; gap:4px !important; flex-wrap:nowrap !important; height:100%;
 }
 .st-key-aog-nav [data-testid="stColumn"] { flex:1 1 0 !important; min-width:0 !important; width:auto !important; }
-.st-key-aog-nav [data-testid="stButton"] { margin:0 !important; }
+.st-key-aog-nav [data-testid="stButton"] { margin:0 !important; width:100%; }
 .st-key-aog-nav [data-testid="stButton"] button {
-    height:68px !important; min-height:68px !important; padding:0 4px !important;
-    background:transparent !important; border:0 !important; box-shadow:none !important;
-    border-radius:16px !important; color:#8a96aa !important; overflow:visible !important;
+    width:100% !important; height:40px !important; min-height:40px !important;
+    padding:0 10px !important; border-radius:11px !important;
+    border:1px solid transparent !important; background:transparent !important;
+    box-shadow:none !important; color:#94a3b8 !important; overflow:visible !important;
+    transition:background .18s ease, color .18s ease, transform .18s ease, box-shadow .18s ease;
 }
-.st-key-aog-nav [data-testid="stButton"] button:hover { color:#e5edf8 !important; }
+.st-key-aog-nav [data-testid="stButton"] button:hover {
+    background:rgba(148,163,184,.10) !important; color:#e2e8f0 !important;
+    transform:translateY(-1px);
+}
+.st-key-aog-nav [data-testid="stButton"] button:focus-visible {
+    outline:2px solid #67e8f9 !important; outline-offset:2px !important;
+}
 .st-key-aog-nav [data-testid="stButton"] button > div,
 .st-key-aog-nav [data-testid="stButton"] button > div > span {
-    display:flex !important; flex-direction:column !important; align-items:center !important;
-    justify-content:center !important; gap:4px !important; overflow:visible !important; min-width:0;
-    max-width:100%;
+    display:flex !important; flex-direction:row !important; align-items:center !important;
+    justify-content:center !important; gap:8px !important; min-width:0 !important;
+    max-width:100%; overflow:visible !important;
 }
-.st-key-aog-nav [data-testid="stIconMaterial"] {
-    font-size:22px !important; transition:transform .6s cubic-bezier(.65,0,.35,1), color .3s ease;
-}
-.st-key-aog-nav [data-testid="stMarkdownContainer"] { max-width:100%; }
+.st-key-aog-nav [data-testid="stIconMaterial"] { font-size:18px !important; flex:0 0 auto; }
+.st-key-aog-nav [data-testid="stMarkdownContainer"] { min-width:0; max-width:100%; }
 .st-key-aog-nav [data-testid="stMarkdownContainer"] p {
-    margin:0 !important; font-size:.7rem !important; font-weight:600 !important; line-height:1.1 !important;
-    white-space:nowrap !important; overflow:hidden; text-overflow:ellipsis; max-width:100%;
-    transition:transform .6s cubic-bezier(.65,0,.35,1), color .3s ease;
+    margin:0 !important; font-size:12.5px !important; font-weight:600 !important;
+    line-height:1.2 !important; letter-spacing:.1px; white-space:nowrap !important;
+    overflow:hidden; text-overflow:ellipsis; max-width:100%;
 }
-.st-key-aog-nav [data-testid="stButton"] button[kind="primary"] { color:#7df25b !important; }
-.st-key-aog-nav [data-testid="stButton"] button[kind="primary"] [data-testid="stIconMaterial"] {
-    transform:translateY(-25px); color:#0c1a07 !important;
-    animation:aogNavIconRise .45s cubic-bezier(.2,.9,.3,1.25) .35s both;
+.st-key-aog-nav [data-testid="stButton"] button[kind="primary"] {
+    background:linear-gradient(135deg,#99f6e4,#67e8f9 55%,#7dd3fc) !important;
+    border-color:rgba(255,255,255,.35) !important; color:#062a33 !important;
+    box-shadow:0 4px 16px rgba(45,212,191,.24), inset 0 1px rgba(255,255,255,.55) !important;
 }
-@keyframes aogNavIconRise {
-    from { transform:translateY(-6px) scale(.4); opacity:0; }
-    to   { transform:translateY(-25px) scale(1); opacity:1; }
+.st-key-aog-nav [data-testid="stButton"] button[kind="primary"]:hover {
+    color:#062a33 !important; box-shadow:0 6px 20px rgba(45,212,191,.32), inset 0 1px rgba(255,255,255,.55) !important;
 }
-@media (max-width: 1100px) {
-    .st-key-aog-topbar .aog-brand-header .aog-title { display:none; }
+.aog-topbar-status {
+    display:inline-flex; align-items:center; justify-content:center; gap:8px;
+    height:32px; padding:0 12px; box-sizing:border-box; border-radius:999px;
+    border:1px solid rgba(148,163,184,.18); background:rgba(15,23,42,.72);
+    color:#cbd5e1; font-size:11px; font-weight:700; letter-spacing:.8px; text-transform:uppercase;
+    white-space:nowrap;
 }
-@media (max-width: 760px) {
-    .st-key-aog-nav [data-testid="stMarkdownContainer"] { display:none !important; }
+.aog-status-dot { width:7px; height:7px; border-radius:50%; background:#34d399;
+    box-shadow:0 0 10px rgba(52,211,153,.75); }
+.aog-topbar-status.demo { color:#fcd34d; border-color:rgba(251,191,36,.22); }
+.aog-topbar-status.demo .aog-status-dot { background:#fbbf24; box-shadow:0 0 10px rgba(251,191,36,.65); }
+@media (max-width:1280px) {
+    .st-key-aog-topbar { padding-left:18px !important; padding-right:18px !important; }
+    .st-key-aog-topbar > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:nth-child(1) {
+        flex-basis:205px !important; width:205px !important;
+    }
+    .aog-topbar-logo { flex-basis:38px; width:38px; height:38px; }
+    .aog-topbar-wordmark strong { font-size:16px; }
+    .aog-topbar-wordmark small { font-size:8px; letter-spacing:1.2px; }
+    .st-key-aog-nav [data-testid="stButton"] button { padding:0 7px !important; }
+    .st-key-aog-nav [data-testid="stButton"] button > div,
+    .st-key-aog-nav [data-testid="stButton"] button > div > span { gap:6px !important; }
+    .st-key-aog-nav [data-testid="stMarkdownContainer"] p { font-size:11.5px !important; }
+}
+@media (max-width:1100px) {
+    .st-key-aog-topbar > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:nth-child(3) {
+        display:none !important;
+    }
+}
+@media (max-width:980px) {
+    .st-key-aog-topbar > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:nth-child(1) {
+        flex-basis:190px !important; width:190px !important;
+    }
+    .aog-topbar-wordmark small { display:none; }
+    .st-key-aog-nav [data-testid="stMarkdownContainer"] {
+        position:absolute !important; width:1px !important; height:1px !important;
+        padding:0 !important; margin:-1px !important; overflow:hidden !important;
+        clip:rect(0,0,0,0) !important; white-space:nowrap !important; border:0 !important;
+    }
+    .st-key-aog-nav [data-testid="stButton"] button { padding:0 !important; }
+    .st-key-aog-nav [data-testid="stIconMaterial"] { font-size:20px !important; }
+}
+@media (max-width:760px) {
+    :root { --aog-topbar-height:68px; }
+    .st-key-aog-topbar { padding-left:10px !important; padding-right:10px !important; }
+    .st-key-aog-topbar [data-testid="stHorizontalBlock"] { gap:8px !important; }
+    .st-key-aog-topbar > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:nth-child(1) {
+        flex:0 0 40px !important; width:40px !important;
+    }
+    .aog-topbar-brand { gap:0; }
+    .aog-topbar-wordmark { display:none; }
+    .aog-topbar-logo { flex-basis:40px; width:40px; height:40px; border-radius:12px; }
+    .st-key-aog-nav { height:50px !important; padding:4px !important; border-radius:14px !important; }
+    .st-key-aog-nav [data-testid="stHorizontalBlock"] { gap:3px !important; }
+    .st-key-aog-nav [data-testid="stButton"] button { height:40px !important; min-height:40px !important; border-radius:10px !important; }
 }
 @media (prefers-reduced-motion: reduce) {
-    .st-key-aog-nav, .st-key-aog-nav [data-testid="stIconMaterial"],
-    .st-key-aog-nav [data-testid="stMarkdownContainer"] p { transition:none !important; animation:none !important; }
+    .st-key-aog-nav [data-testid="stButton"] button { transition:none !important; }
+    .st-key-aog-nav [data-testid="stButton"] button:hover { transform:none; }
 }
 [data-testid="stChatMessage"] {
   position:relative; background:linear-gradient(145deg,#111c2d,#0a1321);
