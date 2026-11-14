@@ -225,23 +225,73 @@ body:has(.aog-council-chat-started) .aog-council-hero {
   33% { filter:blur(34px) hue-rotate(75deg); opacity:.42; }
   66% { filter:blur(34px) hue-rotate(195deg); opacity:.46; }
 }
-.st-key-council-composer-controls { margin-top:.25rem !important; }
-.st-key-council-composer-controls [data-testid="stHorizontalBlock"] {
-    align-items:center !important; gap:.45rem !important;
+/* Compact composer footer: one mode pill + icon-only new chat, not a full-width toolbar. */
+.st-key-composer-controls { margin-top:.2rem !important; }
+.st-key-composer-controls [data-testid="stHorizontalBlock"] {
+    align-items:center !important; gap:.35rem !important;
+    flex-direction:row !important; flex-wrap:nowrap !important;
 }
-.st-key-council-composer-controls [data-testid="stButton"] { margin:0 !important; }
-.st-key-council-composer-controls [data-testid="stButton"] button {
-    min-height:32px !important; border-radius:999px !important; padding:.25rem .65rem !important;
-    font-size:.74rem !important; white-space:nowrap !important;
-    background:rgba(255,255,255,.035) !important; border-color:rgba(145,158,182,.2) !important;
-    color:#aeb8c8 !important;
+.st-key-composer-controls [data-testid="stColumn"] { min-width:0 !important; }
+.st-key-composer-controls [data-testid="stColumn"]:nth-child(1) {
+    flex:0 0 128px !important; width:128px !important;
 }
-.st-key-council-composer-controls [data-testid="stButton"] button[kind="primary"] {
-    background:rgba(255,255,255,.095) !important; border-color:rgba(210,220,240,.34) !important;
-    color:#f2f5fb !important;
+.st-key-composer-controls [data-testid="stColumn"]:nth-child(2) {
+    flex:0 0 30px !important; width:30px !important;
 }
-.st-key-council-composer-controls [data-testid="stButton"] button:disabled {
-    opacity:.56 !important; color:#8490a2 !important;
+.st-key-composer-controls [data-testid="stColumn"]:nth-child(3) {
+    flex:1 1 auto !important; width:auto !important;
+}
+.st-key-composer-controls [data-testid="stColumn"]:nth-child(4) {
+    flex:0 0 auto !important; width:auto !important; max-width:110px !important;
+}
+.st-key-composer-controls [data-testid="stButton"],
+.st-key-composer-controls [data-testid="stPopover"] { margin:0 !important; }
+.st-key-composer-mode button {
+    height:28px !important; min-height:28px !important; padding:0 .55rem !important;
+    border-radius:999px !important; background:rgba(255,255,255,.045) !important;
+    border:1px solid rgba(145,158,182,.22) !important; color:#dbe4f0 !important;
+    box-shadow:none !important;
+}
+.st-key-composer-mode button:hover {
+    background:rgba(255,255,255,.08) !important; border-color:rgba(180,195,220,.34) !important;
+}
+.st-key-composer-mode button [data-testid="stIconMaterial"] { font-size:15px !important; }
+.st-key-composer-mode button p {
+    margin:0 !important; font-size:.74rem !important; font-weight:600 !important;
+    line-height:1.1 !important; white-space:nowrap !important;
+}
+.st-key-composer-mode [data-testid="stRadio"] label { font-size:.8rem !important; }
+.st-key-composer-mode [data-testid="stCaptionContainer"] { font-size:.7rem !important; opacity:.75; }
+.st-key-composer-new-chat button,
+.st-key-council-voice button {
+    width:30px !important; min-width:30px !important; height:28px !important; min-height:28px !important;
+    padding:0 !important; border-radius:9px !important;
+    background:transparent !important; border:1px solid rgba(145,158,182,.18) !important;
+    color:#aeb8c8 !important; box-shadow:none !important;
+}
+.st-key-composer-new-chat button:hover,
+.st-key-council-voice button:hover {
+    background:rgba(148,163,184,.12) !important; color:#e2e8f0 !important;
+}
+.st-key-composer-new-chat button:disabled,
+.st-key-council-voice button:disabled { opacity:.45 !important; color:#8490a2 !important; }
+.st-key-composer-new-chat button [data-testid="stIconMaterial"],
+.st-key-council-voice button [data-testid="stIconMaterial"] { font-size:16px !important; }
+.st-key-composer-new-chat button p,
+.st-key-council-voice button p {
+    position:absolute !important; width:1px !important; height:1px !important;
+    margin:-1px !important; padding:0 !important; overflow:hidden !important;
+    clip:rect(0,0,0,0) !important; white-space:nowrap !important; border:0 !important;
+}
+.aog-composer-demo {
+    display:inline-block; font-size:.68rem; font-weight:700; letter-spacing:.4px;
+    color:#fcd34d; opacity:.85; white-space:nowrap; line-height:1;
+}
+@media (max-width:520px) {
+    .st-key-composer-controls [data-testid="stColumn"]:nth-child(1) {
+        flex-basis:112px !important; width:112px !important;
+    }
+    .st-key-composer-controls [data-testid="stColumn"]:nth-child(4) { max-width:70px !important; }
 }
 @media (prefers-reduced-motion: reduce) {
   .st-key-council-chat-column .st-key-chat-composer-shell::before {
@@ -598,16 +648,16 @@ body:has(.st-key-aog-topbar) [data-testid="stAppViewBlockContainer"] {
 /* Let the conversation fill the viewport so the composer lines up near the page bottom. */
 .st-key-chat-history,
 .st-key-chat-history [data-testid="stVerticalBlockBorderWrapper"] {
-    height: clamp(320px, calc(100vh - 330px), 900px) !important;
-    max-height: clamp(320px, calc(100vh - 330px), 900px) !important;
+    height: clamp(240px, calc(100vh - 510px), 900px) !important;
+    max-height: clamp(240px, calc(100vh - 510px), 900px) !important;
 }
 /* st.container(height=700) juga memberi pembungkusnya tinggi tetap 700px. Tanpa ini ada ruang
    kosong di bawah kotak chat, composer terdorong ke bawah layar, dan saat Streamlit menggulir
    ke bawah jawaban AI ikut keluar dari layar. */
 [data-testid="stLayoutWrapper"]:has(> .st-key-chat-history):not(.st-key-council-chat-column [data-testid="stLayoutWrapper"]) {
-    flex: 0 0 clamp(320px, calc(100vh - 330px), 900px) !important;
-    height: clamp(320px, calc(100vh - 330px), 900px) !important;
-    max-height: clamp(320px, calc(100vh - 330px), 900px) !important;
+    flex: 0 0 clamp(240px, calc(100vh - 510px), 900px) !important;
+    height: clamp(240px, calc(100vh - 510px), 900px) !important;
+    max-height: clamp(240px, calc(100vh - 510px), 900px) !important;
 }
 /* Chat input and repository controls form one Arena-style composer panel. */
 .st-key-chat-composer-shell {
@@ -721,6 +771,8 @@ elif ss.council_mode == "Mendalam":
     ss.council_mode = "Flash"
 elif ss.council_mode not in ("Normal", "Flash"):
     ss.council_mode = "Normal"
+if ss.get("council_mode_pick") not in ("Normal", "Flash"):
+    ss.council_mode_pick = ss.council_mode
 # Re-evaluate current credentials each rerun instead of preserving a stale demo flag.
 ss.demo = not bool(active_provider_names)
 ss.setdefault("active_topbar_page", "AOGx Council")
@@ -1476,17 +1528,57 @@ MODE_HELP = {
 }
 
 
-def mode_label(name: str) -> str:
-    display_name = "Menengah" if name == "Seimbang" else name
-    return f"{display_name} — {MODE_HELP.get(name, '')}".rstrip(" —")
-
-
 def pick_mode():
     ss.agent_code_mode = ss.agent_code_mode_pick
 
 
-def pick_council_mode(mode: str):
-    ss.council_mode = mode
+def pick_council_mode(mode: str | None = None):
+    selected = ss.get("council_mode_pick") if mode is None else mode
+    if selected in ("Normal", "Flash"):
+        ss.council_mode = selected
+        ss.council_mode_pick = selected
+
+
+def render_composer_controls(mode: str, messages: list, is_agent_code_page: bool):
+    """Keep mode and new-chat controls in one small row inside the composer."""
+    with st.container(key="composer-controls"):
+        mode_col, new_col, _spacer, status_col = st.columns(
+            [1.35, 0.38, 5.2, 0.9], gap="small", vertical_alignment="center")
+        with mode_col, st.container(key="composer-mode"):
+            label = "Menengah" if mode == "Seimbang" else mode
+            with st.popover(label, icon=":material/tune:", help="Pilih mode",
+                            use_container_width=True):
+                if is_agent_code_page:
+                    st.radio(
+                        "Kedalaman diskusi", ("Seimbang", "Mendalam"),
+                        key="agent_code_mode_pick", on_change=pick_mode,
+                        format_func=lambda name: "Menengah" if name == "Seimbang" else name,
+                        label_visibility="collapsed",
+                    )
+                else:
+                    st.radio(
+                        "Mode jawaban", ("Normal", "Flash"),
+                        key="council_mode_pick", on_change=pick_council_mode,
+                        label_visibility="collapsed",
+                    )
+                st.caption(MODE_HELP.get(mode, ""))
+        with new_col, st.container(key="composer-new-chat"):
+            st.button(
+                "Chat baru", key="agent-code-new-chat" if is_agent_code_page else "council-new-chat",
+                icon=":material/add_comment:", help="Chat baru · reset percakapan dan batas permintaan",
+                disabled=not messages, use_container_width=True,
+                on_click=reset_chat,
+                args=(active_messages_key, active_request_count_key, active_flow_key),
+            )
+        with status_col:
+            if is_agent_code_page and ss.get("demo"):
+                st.markdown(
+                    '<span class="aog-composer-demo" title="Mode demo: tanpa API key, jawaban berupa contoh.">'
+                    'Demo</span>', unsafe_allow_html=True)
+            elif not is_agent_code_page:
+                st.button("Voice", key="council-voice", icon=":material/graphic_eq:",
+                          disabled=True, use_container_width=True,
+                          help="Input suara belum tersedia.")
 
 
 def reset_chat(messages_key: str, request_count_key: str, flow_key: str):
@@ -1925,26 +2017,6 @@ if is_agent_code_page:
     active_flow_key = "agent_code_flow"
     mode = ss.agent_code_mode
     left, right = st.columns([2, 2], gap="medium")
-    with left:
-        b1, b2 = st.columns(2)
-        with b1:
-            with st.popover("Menengah" if mode == "Seimbang" else mode,
-                            icon=":material/tune:", use_container_width=True,
-                            help="Kedalaman diskusi"):
-                st.markdown("**Kedalaman diskusi**")
-                agent_code_modes = ("Seimbang", "Mendalam")
-                # Nilai awal sudah diatur lewat session_state (agent_code_mode_pick),
-                # jadi tidak perlu `index=` (menghindari peringatan widget ganda).
-                st.radio("Kedalaman", agent_code_modes, key="agent_code_mode_pick",
-                         format_func=mode_label,
-                         on_change=pick_mode, label_visibility="collapsed")
-                st.caption("Mode menengah aktif secara default; mode mendalam memakai lebih banyak kuota.")
-        with b2:
-            if st.button("Chat baru", icon=":material/add_comment:", use_container_width=True):
-                reset_chat(active_messages_key, active_request_count_key, active_flow_key)
-                st.rerun()
-        if demo:
-            st.caption(":material/science: Mode demo: tanpa API key, jawaban berupa contoh.")
 else:
     active_messages_key = "messages"
     active_request_count_key = "n_requests"
@@ -2030,34 +2102,7 @@ with left:
                 question = str(submitted).strip()
         if not is_agent_code_page and (messages or question):
             st.markdown('<span class="aog-council-chat-started"></span>', unsafe_allow_html=True)
-        if not is_agent_code_page:
-            with st.container(key="council-composer-controls"):
-                control_cols = st.columns([1.0, 1.35, 5.4, 1.2], gap="small",
-                                          vertical_alignment="center")
-                with control_cols[0]:
-                    st.button("Normal", key="council-mode-normal",
-                              type="primary" if mode == "Normal" else "secondary",
-                              use_container_width=True,
-                              help="Satu putaran + verifikasi; GPT-OSS 120B diprioritaskan untuk perencanaan, riset, dan sintesis.",
-                              on_click=pick_council_mode, args=("Normal",))
-                with control_cols[1]:
-                    st.button("Flash", key="council-mode-flash", icon=":material/bolt:",
-                              type="primary" if mode == "Flash" else "secondary",
-                              use_container_width=True,
-                              help="Jawaban langsung tanpa putaran; Groq GPT-OSS 120B diprioritaskan.",
-                              on_click=pick_council_mode, args=("Flash",))
-                with control_cols[2]:
-                    # Pesan batas sesi menyuruh pengguna menekan "Chat baru"; di halaman
-                    # Council sebelumnya tombol ini tidak ada.
-                    st.button("Chat baru", key="council-new-chat", icon=":material/add_comment:",
-                              disabled=not messages,
-                              help="Mulai percakapan baru dan reset batas permintaan.",
-                              on_click=reset_chat,
-                              args=(active_messages_key, active_request_count_key, active_flow_key))
-                with control_cols[3]:
-                    st.button("Voice", key="council-voice", icon=":material/graphic_eq:",
-                              disabled=True, use_container_width=True,
-                              help="Input suara belum tersedia.")
+        render_composer_controls(mode, messages, is_agent_code_page)
         if is_agent_code_page:
             github_pr_panel()
     if not is_agent_code_page:
