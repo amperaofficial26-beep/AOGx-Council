@@ -327,6 +327,20 @@ body:has(.st-key-aog-topbar) [data-testid="stAppViewBlockContainer"] {
     height:0 !important; min-height:0 !important; flex:0 0 0 !important;
     margin:0 !important; overflow:visible !important;
 }
+/* Agent Code: tarik layar chat dan Mesin Council naik sát top bar. Blok <style> serta
+   pembungkus top bar tidak terlihat, tetapi tiap blok tetap memakan satu gap flex (16px),
+   sehingga sebelumnya ada ±92px ruang kosong di bawah top bar. Halaman Council memakai
+   spacer hero tersendiri, jadi komposisinya sengaja tidak ikut digeser. */
+body:not(:has(.st-key-council-chat-column)):has(.st-key-aog-topbar) [data-testid="stMainBlockContainer"],
+body:not(:has(.st-key-council-chat-column)):has(.st-key-aog-topbar) [data-testid="stAppViewBlockContainer"] {
+    padding-top:calc(var(--aog-topbar-height) + 10px) !important;
+}
+body:not(:has(.st-key-council-chat-column)) [data-testid="stMainBlockContainer"] > [data-testid="stVerticalBlock"] > [data-testid="stElementContainer"]:has(> [data-testid="stMarkdown"] [data-testid="stMarkdownContainer"] > style:only-child) {
+    display:none !important;
+}
+body:not(:has(.st-key-council-chat-column)) [data-testid="stLayoutWrapper"]:has(> .st-key-aog-topbar) {
+    position:absolute !important; top:0 !important; left:0 !important; right:0 !important;
+}
 .st-key-aog-topbar {
     position:fixed !important; top:0 !important; left:0 !important; right:0 !important;
     width:100vw !important; max-width:100vw !important; height:var(--aog-topbar-height) !important;
@@ -648,16 +662,16 @@ body:has(.st-key-aog-topbar) [data-testid="stAppViewBlockContainer"] {
 /* Let the conversation fill the viewport so the composer lines up near the page bottom. */
 .st-key-chat-history,
 .st-key-chat-history [data-testid="stVerticalBlockBorderWrapper"] {
-    height: clamp(240px, calc(100vh - 510px), 900px) !important;
-    max-height: clamp(240px, calc(100vh - 510px), 900px) !important;
+    height: clamp(240px, calc(100vh - 418px), 900px) !important;
+    max-height: clamp(240px, calc(100vh - 418px), 900px) !important;
 }
 /* st.container(height=700) juga memberi pembungkusnya tinggi tetap 700px. Tanpa ini ada ruang
    kosong di bawah kotak chat, composer terdorong ke bawah layar, dan saat Streamlit menggulir
    ke bawah jawaban AI ikut keluar dari layar. */
 [data-testid="stLayoutWrapper"]:has(> .st-key-chat-history):not(.st-key-council-chat-column [data-testid="stLayoutWrapper"]) {
-    flex: 0 0 clamp(240px, calc(100vh - 510px), 900px) !important;
-    height: clamp(240px, calc(100vh - 510px), 900px) !important;
-    max-height: clamp(240px, calc(100vh - 510px), 900px) !important;
+    flex: 0 0 clamp(240px, calc(100vh - 418px), 900px) !important;
+    height: clamp(240px, calc(100vh - 418px), 900px) !important;
+    max-height: clamp(240px, calc(100vh - 418px), 900px) !important;
 }
 /* Chat input and repository controls form one Arena-style composer panel. */
 .st-key-chat-composer-shell {
