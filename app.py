@@ -267,7 +267,7 @@ body:has(.aog-council-chat-started) .aog-council-hero {
 .aog-council-chat-started { display:none !important; }
 .aog-council-empty-spacer { width:100%; height:clamp(150px,26vh,260px); }
 /* ---------- Top bar: glass command bar, full-bleed and pinned to the viewport ---------- */
-:root { --aog-topbar-height:76px; }
+:root { --aog-topbar-height:88px; }
 html, .stMain { scroll-padding-top:calc(var(--aog-topbar-height) + 12px) !important; }
 body:has(.st-key-aog-topbar) [data-testid="stMainBlockContainer"],
 body:has(.st-key-aog-topbar) [data-testid="stAppViewBlockContainer"] {
@@ -304,48 +304,51 @@ body:has(.st-key-aog-topbar) [data-testid="stAppViewBlockContainer"] {
 }
 .st-key-aog-topbar [data-testid="stColumn"] { min-width:0 !important; }
 .st-key-aog-topbar > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:nth-child(1) {
-    flex:0 0 250px !important; width:250px !important;
+    flex:0 0 264px !important; width:264px !important;
 }
 .st-key-aog-topbar > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:nth-child(2) {
     flex:1 1 auto !important; width:auto !important;
 }
 .st-key-aog-topbar > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:nth-child(3) {
-    flex:0 0 104px !important; width:104px !important;
+    flex:0 0 116px !important; width:116px !important;
 }
 .st-key-aog-topbar-brand, .st-key-aog-topbar-status { width:100%; }
-.aog-topbar-brand { display:flex; align-items:center; gap:12px; min-width:0; }
+.st-key-aog-topbar-brand [data-testid="stMarkdownContainer"],
+.st-key-aog-topbar-status [data-testid="stMarkdownContainer"] { margin-bottom:0 !important; }
+.aog-topbar-brand { display:flex; align-items:center; gap:14px; min-width:0; }
 .aog-topbar-logo {
-    display:flex; align-items:center; justify-content:center; flex:0 0 42px;
-    width:42px; height:42px; border-radius:13px;
+    display:flex; align-items:center; justify-content:center; flex:0 0 52px;
+    width:52px; height:52px; border-radius:15px;
     background:linear-gradient(145deg,#182438,#0b1220);
     border:1px solid rgba(125,211,252,.22);
     box-shadow:inset 0 1px rgba(255,255,255,.08), 0 0 22px rgba(56,189,248,.12);
 }
-.aog-topbar-logo img { display:block; width:29px; height:29px; object-fit:contain;
+.aog-topbar-logo img { display:block; width:36px; height:36px; object-fit:contain;
     filter:drop-shadow(0 0 8px rgba(94,234,212,.28)); }
-.aog-topbar-logo-fallback { color:#e0f2fe; font-weight:800; font-size:20px; }
-.aog-topbar-wordmark { display:flex; flex-direction:column; gap:3px; min-width:0; }
-.aog-topbar-wordmark strong { color:#f8fafc; font-size:18px; font-weight:800;
-    letter-spacing:.2px; line-height:1.1; white-space:nowrap; }
+.aog-topbar-logo-fallback { color:#e0f2fe; font-weight:800; font-size:26px; line-height:1; }
+.aog-topbar-wordmark { display:flex; flex-direction:column; justify-content:center; gap:4px; min-width:0; }
+.aog-topbar-wordmark strong { color:#f8fafc; font-size:22px; font-weight:800;
+    letter-spacing:.2px; line-height:1.15; white-space:nowrap; }
 .aog-topbar-wordmark em { font-style:normal; color:#7dd3fc; }
-.aog-topbar-wordmark small { color:#64748b; font-size:9px; font-weight:700;
-    letter-spacing:1.6px; text-transform:uppercase; white-space:nowrap; }
+.aog-topbar-wordmark small { color:#7c8aa0; font-size:10.5px; font-weight:700;
+    letter-spacing:1.5px; line-height:1.2; text-transform:uppercase; white-space:nowrap; }
 .st-key-aog-nav {
-    position:relative !important; width:100% !important; height:52px !important;
-    padding:5px !important; box-sizing:border-box !important; border-radius:16px !important;
+    position:relative !important; width:100% !important; height:60px !important;
+    padding:6px !important; box-sizing:border-box !important; border-radius:18px !important;
     background:rgba(15,23,42,.72) !important; border:1px solid rgba(148,163,184,.13) !important;
     box-shadow:inset 0 1px rgba(255,255,255,.04), 0 8px 24px rgba(0,0,0,.16) !important;
 }
 .st-key-aog-nav [data-testid="stHorizontalBlock"] {
     position:relative; z-index:1; gap:4px !important; flex-wrap:nowrap !important; height:100%;
+    align-items:center !important;
 }
 .st-key-aog-nav [data-testid="stColumn"] { flex:1 1 0 !important; min-width:0 !important; width:auto !important; }
 .st-key-aog-nav [data-testid="stButton"] { margin:0 !important; width:100%; }
 .st-key-aog-nav [data-testid="stButton"] button {
-    width:100% !important; height:40px !important; min-height:40px !important;
-    padding:0 10px !important; border-radius:11px !important;
+    width:100% !important; height:48px !important; min-height:48px !important;
+    padding:0 14px !important; border-radius:12px !important;
     border:1px solid transparent !important; background:transparent !important;
-    box-shadow:none !important; color:#94a3b8 !important; overflow:visible !important;
+    box-shadow:none !important; color:#aab6c8 !important; overflow:visible !important;
     transition:background .18s ease, color .18s ease, transform .18s ease, box-shadow .18s ease;
 }
 .st-key-aog-nav [data-testid="stButton"] button:hover {
@@ -358,15 +361,20 @@ body:has(.st-key-aog-topbar) [data-testid="stAppViewBlockContainer"] {
 .st-key-aog-nav [data-testid="stButton"] button > div,
 .st-key-aog-nav [data-testid="stButton"] button > div > span {
     display:flex !important; flex-direction:row !important; align-items:center !important;
-    justify-content:center !important; gap:8px !important; min-width:0 !important;
-    max-width:100%; overflow:visible !important;
+    justify-content:center !important; gap:10px !important; min-width:0 !important;
+    max-width:100%; height:100%; overflow:visible !important; line-height:1 !important;
 }
-.st-key-aog-nav [data-testid="stIconMaterial"] { font-size:18px !important; flex:0 0 auto; }
+.st-key-aog-nav [data-testid="stIconMaterial"] {
+    font-size:22px !important; width:22px; height:22px; flex:0 0 auto;
+    display:inline-flex !important; align-items:center !important; justify-content:center !important;
+    line-height:1 !important; vertical-align:middle !important;
+}
 .st-key-aog-nav [data-testid="stMarkdownContainer"] { min-width:0; max-width:100%; }
 .st-key-aog-nav [data-testid="stMarkdownContainer"] p {
-    margin:0 !important; font-size:12.5px !important; font-weight:600 !important;
+    margin:0 !important; font-size:14px !important; font-weight:700 !important;
     line-height:1.2 !important; letter-spacing:.1px; white-space:nowrap !important;
     overflow:hidden; text-overflow:ellipsis; max-width:100%;
+    display:flex; align-items:center; min-height:22px;
 }
 .st-key-aog-nav [data-testid="stButton"] button[kind="primary"] {
     background:linear-gradient(135deg,#99f6e4,#67e8f9 55%,#7dd3fc) !important;
@@ -377,28 +385,35 @@ body:has(.st-key-aog-topbar) [data-testid="stAppViewBlockContainer"] {
     color:#062a33 !important; box-shadow:0 6px 20px rgba(45,212,191,.32), inset 0 1px rgba(255,255,255,.55) !important;
 }
 .aog-topbar-status {
-    display:inline-flex; align-items:center; justify-content:center; gap:8px;
-    height:32px; padding:0 12px; box-sizing:border-box; border-radius:999px;
+    display:inline-flex; align-items:center; justify-content:center; gap:9px;
+    height:38px; padding:0 14px; box-sizing:border-box; border-radius:999px;
     border:1px solid rgba(148,163,184,.18); background:rgba(15,23,42,.72);
-    color:#cbd5e1; font-size:11px; font-weight:700; letter-spacing:.8px; text-transform:uppercase;
-    white-space:nowrap;
+    color:#cbd5e1; font-size:12.5px; font-weight:700; letter-spacing:.8px; text-transform:uppercase;
+    white-space:nowrap; line-height:1;
 }
-.aog-status-dot { width:7px; height:7px; border-radius:50%; background:#34d399;
+.aog-status-dot { width:8px; height:8px; flex:0 0 auto; border-radius:50%; background:#34d399;
     box-shadow:0 0 10px rgba(52,211,153,.75); }
 .aog-topbar-status.demo { color:#fcd34d; border-color:rgba(251,191,36,.22); }
 .aog-topbar-status.demo .aog-status-dot { background:#fbbf24; box-shadow:0 0 10px rgba(251,191,36,.65); }
 @media (max-width:1280px) {
     .st-key-aog-topbar { padding-left:18px !important; padding-right:18px !important; }
     .st-key-aog-topbar > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:nth-child(1) {
-        flex-basis:205px !important; width:205px !important;
+        flex-basis:218px !important; width:218px !important;
     }
-    .aog-topbar-logo { flex-basis:38px; width:38px; height:38px; }
-    .aog-topbar-wordmark strong { font-size:16px; }
-    .aog-topbar-wordmark small { font-size:8px; letter-spacing:1.2px; }
-    .st-key-aog-nav [data-testid="stButton"] button { padding:0 7px !important; }
+    .st-key-aog-topbar > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:nth-child(3) {
+        flex-basis:104px !important; width:104px !important;
+    }
+    .aog-topbar-logo { flex-basis:46px; width:46px; height:46px; }
+    .aog-topbar-logo img { width:32px; height:32px; }
+    .aog-topbar-wordmark strong { font-size:18.5px; }
+    .aog-topbar-wordmark small { font-size:9.5px; letter-spacing:1.2px; }
+    .st-key-aog-nav { height:56px !important; padding:5px !important; }
+    .st-key-aog-nav [data-testid="stButton"] button { height:44px !important; min-height:44px !important; padding:0 8px !important; }
     .st-key-aog-nav [data-testid="stButton"] button > div,
-    .st-key-aog-nav [data-testid="stButton"] button > div > span { gap:6px !important; }
-    .st-key-aog-nav [data-testid="stMarkdownContainer"] p { font-size:11.5px !important; }
+    .st-key-aog-nav [data-testid="stButton"] button > div > span { gap:7px !important; }
+    .st-key-aog-nav [data-testid="stIconMaterial"] { font-size:20px !important; width:20px; height:20px; }
+    .st-key-aog-nav [data-testid="stMarkdownContainer"] p { font-size:12.5px !important; min-height:20px; }
+    .aog-topbar-status { height:34px; padding:0 12px; font-size:11.5px; }
 }
 @media (max-width:1100px) {
     .st-key-aog-topbar > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:nth-child(3) {
@@ -416,21 +431,23 @@ body:has(.st-key-aog-topbar) [data-testid="stAppViewBlockContainer"] {
         clip:rect(0,0,0,0) !important; white-space:nowrap !important; border:0 !important;
     }
     .st-key-aog-nav [data-testid="stButton"] button { padding:0 !important; }
-    .st-key-aog-nav [data-testid="stIconMaterial"] { font-size:20px !important; }
+    .st-key-aog-nav [data-testid="stIconMaterial"] { font-size:24px !important; width:24px; height:24px; }
 }
 @media (max-width:760px) {
-    :root { --aog-topbar-height:68px; }
+    :root { --aog-topbar-height:76px; }
     .st-key-aog-topbar { padding-left:10px !important; padding-right:10px !important; }
     .st-key-aog-topbar [data-testid="stHorizontalBlock"] { gap:8px !important; }
     .st-key-aog-topbar > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:nth-child(1) {
-        flex:0 0 40px !important; width:40px !important;
+        flex:0 0 46px !important; width:46px !important;
     }
     .aog-topbar-brand { gap:0; }
     .aog-topbar-wordmark { display:none; }
-    .aog-topbar-logo { flex-basis:40px; width:40px; height:40px; border-radius:12px; }
-    .st-key-aog-nav { height:50px !important; padding:4px !important; border-radius:14px !important; }
+    .aog-topbar-logo { flex-basis:46px; width:46px; height:46px; border-radius:14px; }
+    .aog-topbar-logo img { width:32px; height:32px; }
+    .st-key-aog-nav { height:56px !important; padding:4px !important; border-radius:14px !important; }
     .st-key-aog-nav [data-testid="stHorizontalBlock"] { gap:3px !important; }
-    .st-key-aog-nav [data-testid="stButton"] button { height:40px !important; min-height:40px !important; border-radius:10px !important; }
+    .st-key-aog-nav [data-testid="stButton"] button { height:44px !important; min-height:44px !important; border-radius:10px !important; }
+    .st-key-aog-nav [data-testid="stIconMaterial"] { font-size:22px !important; width:22px; height:22px; }
 }
 @media (prefers-reduced-motion: reduce) {
     .st-key-aog-nav [data-testid="stButton"] button { transition:none !important; }
