@@ -184,7 +184,7 @@ html:has(.st-key-council-chat-column) { font-size:110% !important; }
   filter:drop-shadow(0 0 10px rgba(56,231,211,.24)); }
 .aog-brand-header .aog-title { margin:0; white-space:nowrap; }
 .aog-council-hero {
-  display:flex; flex-direction:column; align-items:center; gap:5px;
+  display:flex; flex-direction:column; align-items:center; gap:-5px;
   max-height:2400px; margin:.6rem auto 0; padding:0 18px;
   text-align:center; overflow:hidden;
 }
