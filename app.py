@@ -264,15 +264,15 @@ body:has(.aog-council-chat-started) .aog-council-hero {
 /* Compact composer footer: one mode pill + icon-only new chat, not a full-width toolbar. */
 .st-key-composer-controls { margin-top:.2rem !important; }
 .st-key-composer-controls [data-testid="stHorizontalBlock"] {
-    align-items:center !important; gap:.35rem !important;
+    min-height:38px !important; align-items:center !important; gap:.55rem !important;
     flex-direction:row !important; flex-wrap:nowrap !important;
 }
 .st-key-composer-controls [data-testid="stColumn"] { min-width:0 !important; }
 .st-key-composer-controls [data-testid="stColumn"]:nth-child(1) {
-    flex:0 0 128px !important; width:128px !important;
+    flex:0 0 136px !important; width:136px !important;
 }
 .st-key-composer-controls [data-testid="stColumn"]:nth-child(2) {
-    flex:0 0 30px !important; width:30px !important;
+    flex:0 0 36px !important; width:36px !important;
 }
 .st-key-composer-controls [data-testid="stColumn"]:nth-child(3) {
     flex:1 1 auto !important; width:auto !important;
@@ -283,7 +283,7 @@ body:has(.aog-council-chat-started) .aog-council-hero {
 .st-key-composer-controls [data-testid="stButton"],
 .st-key-composer-controls [data-testid="stPopover"] { margin:0 !important; }
 .st-key-composer-mode button {
-    height:28px !important; min-height:28px !important; padding:0 .55rem !important;
+    height:34px !important; min-height:34px !important; padding:0 .65rem !important;
     border-radius:999px !important; background:rgba(255,255,255,.045) !important;
     border:1px solid rgba(145,158,182,.22) !important; color:#dbe4f0 !important;
     box-shadow:none !important;
@@ -291,7 +291,7 @@ body:has(.aog-council-chat-started) .aog-council-hero {
 .st-key-composer-mode button:hover {
     background:rgba(255,255,255,.08) !important; border-color:rgba(180,195,220,.34) !important;
 }
-.st-key-composer-mode button [data-testid="stIconMaterial"] { font-size:15px !important; }
+.st-key-composer-mode button [data-testid="stIconMaterial"] { font-size:20px !important; }
 .st-key-composer-mode button p {
     margin:0 !important; font-size:.74rem !important; font-weight:600 !important;
     line-height:1.1 !important; white-space:nowrap !important;
@@ -300,19 +300,19 @@ body:has(.aog-council-chat-started) .aog-council-hero {
 .st-key-composer-mode [data-testid="stCaptionContainer"] { font-size:.7rem !important; opacity:.75; }
 .st-key-composer-new-chat button,
 .st-key-council-voice button {
-    width:30px !important; min-width:30px !important; height:28px !important; min-height:28px !important;
-    padding:0 !important; border-radius:9px !important;
-    background:transparent !important; border:1px solid rgba(145,158,182,.18) !important;
-    color:#aeb8c8 !important; box-shadow:none !important;
+    width:36px !important; min-width:36px !important; height:34px !important; min-height:34px !important;
+    padding:0 !important; border-radius:10px !important;
+    background:rgba(255,255,255,.035) !important; border:1px solid rgba(145,158,182,.24) !important;
+    color:#cbd5e1 !important; box-shadow:none !important;
 }
 .st-key-composer-new-chat button:hover,
 .st-key-council-voice button:hover {
-    background:rgba(148,163,184,.12) !important; color:#e2e8f0 !important;
+    background:rgba(148,163,184,.15) !important; color:#e2e8f0 !important;
 }
 .st-key-composer-new-chat button:disabled,
-.st-key-council-voice button:disabled { opacity:.45 !important; color:#8490a2 !important; }
+.st-key-council-voice button:disabled { opacity:.55 !important; color:#9aa6b8 !important; }
 .st-key-composer-new-chat button [data-testid="stIconMaterial"],
-.st-key-council-voice button [data-testid="stIconMaterial"] { font-size:16px !important; }
+.st-key-council-voice button [data-testid="stIconMaterial"] { font-size:21px !important; }
 .st-key-composer-new-chat button p,
 .st-key-council-voice button p {
     position:absolute !important; width:1px !important; height:1px !important;
@@ -325,7 +325,10 @@ body:has(.aog-council-chat-started) .aog-council-hero {
 }
 @media (max-width:520px) {
     .st-key-composer-controls [data-testid="stColumn"]:nth-child(1) {
-        flex-basis:112px !important; width:112px !important;
+        flex-basis:116px !important; width:116px !important;
+    }
+    .st-key-composer-controls [data-testid="stColumn"]:nth-child(2) {
+        flex-basis:36px !important; width:36px !important;
     }
     .st-key-composer-controls [data-testid="stColumn"]:nth-child(4) { max-width:70px !important; }
 }
@@ -738,14 +741,49 @@ body:not(:has(.st-key-council-chat-column)) [data-testid="stLayoutWrapper"]:has(
     display: none !important;
 }
 .st-key-chat-composer-shell [data-testid="stChatInput"] > div {
-    background: transparent !important;
-    border: 0 !important;
-    border-radius: 14px !important;
-    box-shadow: none !important;
+    display:flex !important; flex-direction:column !important; justify-content:center !important;
+    gap:.4rem !important; min-height:74px !important; padding:6px 10px !important;
+    background:transparent !important; border:0 !important;
+    border-radius:14px !important; box-shadow:none !important;
 }
 .st-key-chat-composer-shell [data-testid="stChatInput"] textarea {
-    min-height: 52px !important;
-    transform: none !important;
+    width:100% !important; min-height:54px !important; padding:7px 2px !important;
+    line-height:1.45 !important; transform:none !important;
+}
+.st-key-chat-composer-shell [data-testid="stChatInputFileUploadButton"] button {
+    background:linear-gradient(145deg,rgba(76,29,149,.96),rgba(88,28,135,.92)) !important;
+    border:1px solid rgba(192,132,252,.58) !important; color:#67e8f9 !important;
+    box-shadow:0 3px 12px rgba(139,92,246,.28) !important;
+}
+.st-key-chat-composer-shell [data-testid="stChatInputFileUploadButton"] button svg {
+    color:#67e8f9 !important; fill:currentColor !important;
+}
+.st-key-chat-composer-shell [data-testid="stChatInputFileUploadButton"] button:hover {
+    background:linear-gradient(145deg,rgba(109,40,217,.96),rgba(147,51,234,.92)) !important;
+}
+.st-key-chat-composer-shell [data-testid="stChatInput"] button[aria-label="Submit"],
+.st-key-chat-composer-shell [data-testid="stChatInput"] button[aria-label*="Send"],
+.st-key-chat-composer-shell [data-testid="stChatInputSubmitButton"] {
+    position:relative !important; display:inline-flex !important;
+    align-items:center !important; justify-content:center !important;
+    background:linear-gradient(135deg,#22d3ee,#2563eb) !important;
+    color:#fff !important; box-shadow:0 4px 14px rgba(34,211,238,.3) !important;
+}
+.st-key-chat-composer-shell [data-testid="stChatInput"] button[aria-label="Submit"]:hover,
+.st-key-chat-composer-shell [data-testid="stChatInput"] button[aria-label*="Send"]:hover,
+.st-key-chat-composer-shell [data-testid="stChatInputSubmitButton"]:hover {
+    background:linear-gradient(135deg,#67e8f9,#3b82f6) !important;
+}
+.st-key-chat-composer-shell [data-testid="stChatInput"] button[aria-label="Submit"] svg,
+.st-key-chat-composer-shell [data-testid="stChatInput"] button[aria-label*="Send"] svg,
+.st-key-chat-composer-shell [data-testid="stChatInputSubmitButton"] svg { opacity:0 !important; }
+.st-key-chat-composer-shell [data-testid="stChatInput"] button[aria-label="Submit"]::after,
+.st-key-chat-composer-shell [data-testid="stChatInput"] button[aria-label*="Send"]::after,
+.st-key-chat-composer-shell [data-testid="stChatInputSubmitButton"]::after {
+    content:""; display:block; width:20px; height:20px; flex:0 0 20px;
+    background:#fff;
+    -webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M2.01%2021%2023%2012%202.01%203%202%2010l15%202-14.99%202z'/%3E%3C/svg%3E") center/contain no-repeat;
+    mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M2.01%2021%2023%2012%202.01%203%202%2010l15%202-14.99%202z'/%3E%3C/svg%3E") center/contain no-repeat;
 }
 .st-key-chat-composer-shell .st-key-github-repo-toolbar {
     position: static !important;
