@@ -122,9 +122,23 @@ st.markdown(machine.CSS, unsafe_allow_html=True)
 st.markdown(thinking.CSS, unsafe_allow_html=True)
 st.markdown("""
 <style>
-/* Clear the app canvas for the video while retaining its stacking context. */
+/* Dasar hitam dengan cahaya aurora lembut yang perlahan berubah warna. */
+@keyframes aogAmbientShift {
+  0% { transform:translate3d(-2%,-1%,0) scale(1); filter:blur(74px) hue-rotate(0deg); }
+  50% { transform:translate3d(2%,2%,0) scale(1.08); filter:blur(92px) hue-rotate(115deg); }
+  100% { transform:translate3d(-1%,3%,0) scale(1.03); filter:blur(80px) hue-rotate(235deg); }
+}
 .stApp {
-  position:relative; isolation:isolate; background-color:transparent !important;
+  position:relative; isolation:isolate; background-color:#020409 !important;
+}
+.stApp::before {
+  content:""; position:fixed; z-index:-1; inset:-18%; pointer-events:none;
+  background:
+    radial-gradient(ellipse 42% 40% at 16% 18%,rgba(34,211,238,.34),transparent 72%),
+    radial-gradient(ellipse 36% 40% at 82% 24%,rgba(139,92,246,.34),transparent 72%),
+    radial-gradient(ellipse 46% 40% at 52% 84%,rgba(236,72,153,.24),transparent 74%),
+    radial-gradient(ellipse 30% 36% at 8% 80%,rgba(249,115,22,.20),transparent 72%);
+  opacity:.68; animation:aogAmbientShift 28s ease-in-out infinite alternate;
 }
 [data-testid="stAppViewContainer"] {
   position:relative !important; isolation:isolate !important; z-index:0 !important;
@@ -134,11 +148,8 @@ st.markdown("""
   position:relative !important; z-index:1 !important;
   background-color:transparent !important;
 }
-.aog-background-video {
-  position:fixed; inset:0; z-index:-1; display:block;
-  width:100vw; height:100vh; object-fit:cover; object-position:center;
-  opacity:.72; filter:brightness(.62) saturate(.9);
-  pointer-events:none;
+@media (prefers-reduced-motion: reduce) {
+  .stApp::before { animation:none !important; filter:blur(82px) hue-rotate(80deg); }
 }
 .block-container { padding-top: 3px !important; padding-bottom: 1rem; max-width: 1840px; }
 [data-testid="stAppViewBlockContainer"] { padding-top: 0 !important; }
@@ -799,18 +810,6 @@ left: -10px
 }
 </style>
 """, unsafe_allow_html=True)
-st.markdown(
-    '<video class="aog-background-video" autoplay muted loop playsinline preload="auto" '
-    'aria-hidden="true" tabindex="-1">'
-    '<source src="/app/static/bg_aog_slow.mp4" type="video/mp4">'
-    '<source src="https://cdn.jsdelivr.net/gh/amperaofficial26-beep/AOGx-Council@main/ui/assets/bg_aog_slow.mp4" '
-    'type="video/mp4">'
-    '<source src="https://raw.githubusercontent.com/amperaofficial26-beep/AOGx-Council/main/ui/assets/bg_aog_slow.mp4" '
-    'type="video/mp4"></video>',
-    unsafe_allow_html=True,
-)
-
-
 # ---------- Gerbang kode akses (opsional) ----------
 access_code = config.get_secret("APP_ACCESS_CODE")
 if access_code and not st.session_state.get("auth"):
