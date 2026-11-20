@@ -800,6 +800,8 @@ body:not(:has(.st-key-council-chat-column)) [data-testid="stLayoutWrapper"]:has(
     background:#fff;
     -webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M2.01%2021%2023%2012%202.01%203%202%2010l15%202-14.99%202z'/%3E%3C/svg%3E") center/contain no-repeat;
     mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M2.01%2021%2023%2012%202.01%203%202%2010l15%202-14.99%202z'/%3E%3C/svg%3E") center/contain no-repeat;
+position: relative;
+left: -10px
 }
 .st-key-chat-composer-shell .st-key-github-repo-toolbar {
     position: static !important;
