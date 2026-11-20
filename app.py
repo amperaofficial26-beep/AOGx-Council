@@ -122,6 +122,25 @@ st.markdown(machine.CSS, unsafe_allow_html=True)
 st.markdown(thinking.CSS, unsafe_allow_html=True)
 st.markdown("""
 <style>
+/* Latar berbintang halus: titik-titik kecil melayang perlahan di belakang panel. */
+@keyframes aogStarDrift {
+  0% { background-position:0 0,0 0,0 0,0 0; }
+  50% { background-position:36px -24px,-32px 42px,28px 34px,-44px -30px; }
+  100% { background-position:72px -48px,-64px 84px,56px 68px,-88px -60px; }
+}
+.stApp {
+  background-image:
+    radial-gradient(circle,rgba(220,244,255,.48) 0 .7px,transparent 1.35px),
+    radial-gradient(circle,rgba(125,211,252,.38) 0 .8px,transparent 1.5px),
+    radial-gradient(circle,rgba(196,181,253,.30) 0 .7px,transparent 1.4px),
+    radial-gradient(circle,rgba(255,255,255,.27) 0 .65px,transparent 1.3px);
+  background-size:210px 190px,285px 255px,175px 235px,365px 315px;
+  background-repeat:repeat;
+  animation:aogStarDrift 90s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .stApp { animation:none !important; }
+}
 .block-container { padding-top: 3px !important; padding-bottom: 1rem; max-width: 1840px; }
 [data-testid="stAppViewBlockContainer"] { padding-top: 0 !important; }
 /* Keep the Council desktop composition fixed at the 1840px wide layout.
