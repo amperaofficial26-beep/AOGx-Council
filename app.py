@@ -184,7 +184,7 @@ html:has(.st-key-council-chat-column) { font-size:110% !important; }
   filter:drop-shadow(0 0 10px rgba(56,231,211,.24)); }
 .aog-brand-header .aog-title { margin:0; white-space:nowrap; }
 .aog-council-hero {
-  display:flex; flex-direction:column; align-items:center; gap:20px;
+  display:flex; flex-direction:column; align-items:center; gap:15px;
   max-height:2400px; margin:.6rem auto 0; padding:0 18px;
   text-align:center; overflow:hidden;
 }
@@ -200,7 +200,7 @@ html:has(.st-key-council-chat-column) { font-size:110% !important; }
   filter:drop-shadow(0 0 7px rgba(56,231,211,.3));
 }
 .aog-council-hero h1 {
-  margin:0; color:#f3f4f6; font-size:clamp(4rem,7vw,5rem);
+  margin:0; color:#f3f4f6; font-size:clamp(1.2rem,5vw,3rem);
   font-weight:700; letter-spacing:-.035em; line-height:1.2; overflow-wrap:anywhere;
 }
 .aog-council-hero h1 span {
