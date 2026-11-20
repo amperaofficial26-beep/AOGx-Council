@@ -184,23 +184,23 @@ html:has(.st-key-council-chat-column) { font-size:110% !important; }
   filter:drop-shadow(0 0 10px rgba(56,231,211,.24)); }
 .aog-brand-header .aog-title { margin:0; white-space:nowrap; }
 .aog-council-hero {
-  display:flex; flex-direction:column; align-items:center; gap:18px;
+  display:flex; flex-direction:column; align-items:center; gap:20px;
   max-height:320px; margin:.6rem auto 0; padding:0 18px;
   text-align:center; overflow:hidden;
 }
 .aog-council-hero-mark {
-  width:70px; height:70px; display:grid; place-items:center; flex:0 0 auto;
+  width:94px; height:94px; display:grid; place-items:center; flex:0 0 auto;
   border:1px solid transparent; border-radius:50%;
   background:linear-gradient(#090d14,#090d14) padding-box,
     linear-gradient(135deg,#38e7d3,#6475ff 58%,#a855f7) border-box;
   box-shadow:0 0 28px rgba(56,189,248,.13),inset 0 0 18px rgba(99,102,241,.10);
 }
 .aog-council-hero-mark img {
-  display:block; width:38px; height:38px; object-fit:contain;
+  display:block; width:52px; height:52px; object-fit:contain;
   filter:drop-shadow(0 0 7px rgba(56,231,211,.3));
 }
 .aog-council-hero h1 {
-  margin:0; color:#f3f4f6; font-size:clamp(1.65rem,3.4vw,2.45rem);
+  margin:0; color:#f3f4f6; font-size:clamp(1.8rem,4vw,3rem);
   font-weight:700; letter-spacing:-.035em; line-height:1.2;
 }
 .aog-council-hero h1 span {
