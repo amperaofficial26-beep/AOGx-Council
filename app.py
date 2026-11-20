@@ -834,10 +834,10 @@ body:not(:has(.st-key-council-chat-column)) [data-testid="stLayoutWrapper"]:has(
 st.markdown(
     '<video class="aog-background-video" autoplay muted loop playsinline preload="auto" '
     'aria-hidden="true" tabindex="-1">'
-    '<source src="/app/static/bg_aog.mp4" type="video/mp4">'
-    '<source src="https://cdn.jsdelivr.net/gh/amperaofficial26-beep/AOGx-Council@main/ui/assets/bg_aog.mp4" '
+    '<source src="/app/static/bg_aog_slow.mp4" type="video/mp4">'
+    '<source src="https://cdn.jsdelivr.net/gh/amperaofficial26-beep/AOGx-Council@main/ui/assets/bg_aog_slow.mp4" '
     'type="video/mp4">'
-    '<source src="https://raw.githubusercontent.com/amperaofficial26-beep/AOGx-Council/main/ui/assets/bg_aog.mp4" '
+    '<source src="https://raw.githubusercontent.com/amperaofficial26-beep/AOGx-Council/main/ui/assets/bg_aog_slow.mp4" '
     'type="video/mp4"></video>',
     unsafe_allow_html=True,
 )
