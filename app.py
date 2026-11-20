@@ -185,23 +185,23 @@ html:has(.st-key-council-chat-column) { font-size:110% !important; }
 .aog-brand-header .aog-title { margin:0; white-space:nowrap; }
 .aog-council-hero {
   display:flex; flex-direction:column; align-items:center; gap:20px;
-  max-height:320px; margin:.6rem auto 0; padding:0 18px;
+  max-height:2400px; margin:.6rem auto 0; padding:0 18px;
   text-align:center; overflow:hidden;
 }
 .aog-council-hero-mark {
-  width:94px; height:94px; display:grid; place-items:center; flex:0 0 auto;
+  width:min(376px,100%); height:auto; aspect-ratio:1; display:grid; place-items:center; flex:0 0 auto;
   border:1px solid transparent; border-radius:50%;
   background:linear-gradient(#090d14,#090d14) padding-box,
     linear-gradient(135deg,#38e7d3,#6475ff 58%,#a855f7) border-box;
   box-shadow:0 0 28px rgba(56,189,248,.13),inset 0 0 18px rgba(99,102,241,.10);
 }
 .aog-council-hero-mark img {
-  display:block; width:52px; height:52px; object-fit:contain;
+  display:block; width:208px; height:208px; object-fit:contain;
   filter:drop-shadow(0 0 7px rgba(56,231,211,.3));
 }
 .aog-council-hero h1 {
-  margin:0; color:#f3f4f6; font-size:clamp(1.8rem,4vw,3rem);
-  font-weight:700; letter-spacing:-.035em; line-height:1.2;
+  margin:0; color:#f3f4f6; font-size:clamp(7.2rem,16vw,12rem);
+  font-weight:700; letter-spacing:-.035em; line-height:1.2; overflow-wrap:anywhere;
 }
 .aog-council-hero h1 span {
   background:linear-gradient(95deg,#34d399,#22d3ee 52%,#818cf8);
@@ -215,7 +215,7 @@ body:has(.aog-council-chat-started) .aog-council-hero {
   pointer-events:none; animation:aogCouncilHeroExit 720ms cubic-bezier(.22,.76,.24,1) both;
 }
 @keyframes aogCouncilHeroExit {
-  0% { max-height:320px; margin-top:.6rem; opacity:1; filter:blur(0); transform:translateY(0); }
+  0% { max-height:2400px; margin-top:.6rem; opacity:1; filter:blur(0); transform:translateY(0); }
   58% { max-height:150px; margin-top:.25rem; opacity:.55; filter:blur(3px); transform:translateY(-12px) scale(.97); }
   100% { max-height:0; margin-top:0; opacity:0; filter:blur(10px); transform:translateY(-28px) scale(.94); }
 }
