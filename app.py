@@ -122,21 +122,21 @@ st.markdown(machine.CSS, unsafe_allow_html=True)
 st.markdown(thinking.CSS, unsafe_allow_html=True)
 st.markdown("""
 <style>
-/* Latar berbintang halus: titik-titik kecil melayang perlahan di belakang panel. */
+/* Bintang-bintang kecil bergerak jelas, namun tetap lembut, di belakang panel. */
 @keyframes aogStarDrift {
   0% { background-position:0 0,0 0,0 0,0 0; }
-  50% { background-position:36px -24px,-32px 42px,28px 34px,-44px -30px; }
-  100% { background-position:72px -48px,-64px 84px,56px 68px,-88px -60px; }
+  50% { background-position:105px -95px,-142.5px 127.5px,87.5px 117.5px,-182.5px -157.5px; }
+  100% { background-position:210px -190px,-285px 255px,175px 235px,-365px -315px; }
 }
 .stApp {
   background-image:
-    radial-gradient(circle,rgba(220,244,255,.48) 0 .7px,transparent 1.35px),
-    radial-gradient(circle,rgba(125,211,252,.38) 0 .8px,transparent 1.5px),
-    radial-gradient(circle,rgba(196,181,253,.30) 0 .7px,transparent 1.4px),
-    radial-gradient(circle,rgba(255,255,255,.27) 0 .65px,transparent 1.3px);
+    radial-gradient(circle,rgba(220,244,255,.56) 0 .7px,transparent 1.35px),
+    radial-gradient(circle,rgba(125,211,252,.46) 0 .8px,transparent 1.5px),
+    radial-gradient(circle,rgba(196,181,253,.38) 0 .7px,transparent 1.4px),
+    radial-gradient(circle,rgba(255,255,255,.34) 0 .65px,transparent 1.3px);
   background-size:210px 190px,285px 255px,175px 235px,365px 315px;
   background-repeat:repeat;
-  animation:aogStarDrift 90s linear infinite;
+  animation:aogStarDrift 24s linear infinite;
 }
 @media (prefers-reduced-motion: reduce) {
   .stApp { animation:none !important; }
