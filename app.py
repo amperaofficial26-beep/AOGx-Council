@@ -147,7 +147,12 @@ st.markdown("""
   background-repeat:repeat;
   animation:aogStarDrift 24s linear infinite;
 }
-[data-testid="stAppViewContainer"], [data-testid="stMain"] {
+[data-testid="stAppViewContainer"] {
+  position:relative !important; isolation:isolate !important; z-index:0 !important;
+  background-color:transparent !important;
+}
+[data-testid="stMain"] {
+  position:relative !important; z-index:1 !important;
   background-color:transparent !important;
 }
 .aog-background-video {
