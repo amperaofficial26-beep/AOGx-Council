@@ -777,7 +777,7 @@ body:not(:has(.st-key-council-chat-column)) [data-testid="stLayoutWrapper"]:has(
 .st-key-chat-composer-shell [data-testid="stChatInput"] button[aria-label="Submit"] svg,
 .st-key-chat-composer-shell [data-testid="stChatInput"] button[aria-label*="Send"] svg,
 .st-key-chat-composer-shell [data-testid="stChatInputSubmitButton"] svg { opacity:0 !important; }
-.st-key-chat-composer-shell [data-testid="stChatInput"] button[aria-label="Submit"]::after,
+.st-key-chat-composer-shell [data-testid="stChatInput"] button[aria-label="Submit"]::after, transform: translate(5, 2px);
 .st-key-chat-composer-shell [data-testid="stChatInput"] button[aria-label*="Send"]::after,
 .st-key-chat-composer-shell [data-testid="stChatInputSubmitButton"]::after {
     content:""; display:block; width:20px; height:20px; flex:0 0 20px;
