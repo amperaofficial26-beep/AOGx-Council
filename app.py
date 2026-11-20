@@ -122,30 +122,9 @@ st.markdown(machine.CSS, unsafe_allow_html=True)
 st.markdown(thinking.CSS, unsafe_allow_html=True)
 st.markdown("""
 <style>
-/* Starfield terang berlapis dan meteor sesekali melintas diagonal. */
-@keyframes aogStarDrift {
-  0% { background-position:0 0,0 0,0 0,0 0,0 0; }
-  50% { background-position:105px -95px,-142.5px 127.5px,87.5px 117.5px,-182.5px -157.5px,215px 195px,-162.5px 140px; }
-  100% { background-position:210px -190px,-285px 255px,175px 235px,-365px -315px,430px 390px,-325px 280px; }
-}
-@keyframes aogShootingStar {
-  0%,70%,100% { opacity:0; transform:translate3d(0,0,0) rotate(145deg); }
-  72% { opacity:1; transform:translate3d(-7vw,6vh,0) rotate(145deg); }
-  74% { opacity:.95; transform:translate3d(-24vw,22vh,0) rotate(145deg); }
-  79% { opacity:0; transform:translate3d(-78vw,66vh,0) rotate(145deg); }
-}
+/* Clear the app canvas for the video while retaining its stacking context. */
 .stApp {
   position:relative; isolation:isolate; background-color:transparent !important;
-  background-image:
-    radial-gradient(circle,rgba(220,244,255,.62) 0 .7px,transparent 1.45px),
-    radial-gradient(circle,rgba(125,211,252,.54) 0 .8px,transparent 1.6px),
-    radial-gradient(circle,rgba(196,181,253,.46) 0 .7px,transparent 1.5px),
-    radial-gradient(circle,rgba(255,255,255,.42) 0 .65px,transparent 1.4px),
-    radial-gradient(circle,rgba(255,255,255,.96) 0 .8px,rgba(125,211,252,.66) 1.2px,transparent 3px),
-    radial-gradient(circle,rgba(255,255,255,.88) 0 .7px,rgba(196,181,253,.56) 1.2px,transparent 2.8px);
-  background-size:210px 190px,285px 255px,175px 235px,365px 315px,430px 390px,325px 280px;
-  background-repeat:repeat;
-  animation:aogStarDrift 24s linear infinite;
 }
 [data-testid="stAppViewContainer"] {
   position:relative !important; isolation:isolate !important; z-index:0 !important;
@@ -160,19 +139,6 @@ st.markdown("""
   width:100vw; height:100vh; object-fit:cover; object-position:center;
   opacity:.72; filter:brightness(.62) saturate(.9);
   pointer-events:none;
-}
-.stApp::after {
-  content:""; position:fixed; z-index:2; pointer-events:none;
-  top:7vh; left:88vw; width:190px; height:2px; border-radius:50%;
-  background:linear-gradient(90deg,rgba(255,255,255,.98),rgba(190,239,255,.78) 32%,rgba(125,211,252,.25) 72%,transparent);
-  box-shadow:0 0 7px 1px rgba(186,230,253,.88),0 0 18px 4px rgba(56,189,248,.50);
-  mix-blend-mode:screen; opacity:0;
-  animation:aogShootingStar 24s ease-in-out infinite;
-}
-@media (prefers-reduced-motion: reduce) {
-  /* Matikan efek bintang jatuh, tetapi biarkan video pilihan pengguna tetap tampil. */
-  .stApp { animation:none !important; }
-  .stApp::after { display:none !important; animation:none !important; }
 }
 .block-container { padding-top: 3px !important; padding-bottom: 1rem; max-width: 1840px; }
 [data-testid="stAppViewBlockContainer"] { padding-top: 0 !important; }
@@ -800,6 +766,8 @@ body:not(:has(.st-key-council-chat-column)) [data-testid="stLayoutWrapper"]:has(
     background:#fff;
     -webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M2.01%2021%2023%2012%202.01%203%202%2010l15%202-14.99%202z'/%3E%3C/svg%3E") center/contain no-repeat;
     mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M2.01%2021%2023%2012%202.01%203%202%2010l15%202-14.99%202z'/%3E%3C/svg%3E") center/contain no-repeat;
+position: relative;
+left: -10px
 }
 .st-key-chat-composer-shell .st-key-github-repo-toolbar {
     position: static !important;
