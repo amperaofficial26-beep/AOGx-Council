@@ -122,6 +122,9 @@ st.markdown(machine.CSS, unsafe_allow_html=True)
 st.markdown(thinking.CSS, unsafe_allow_html=True)
 st.markdown("""
 <style>
+/* Clear the app canvas for the video while retaining its stacking context. */
+.stApp {
+  position:relative; isolation:isolate; background-color:transparent !important;
 }
 [data-testid="stAppViewContainer"] {
   position:relative !important; isolation:isolate !important; z-index:0 !important;
@@ -136,19 +139,6 @@ st.markdown("""
   width:100vw; height:100vh; object-fit:cover; object-position:center;
   opacity:.72; filter:brightness(.62) saturate(.9);
   pointer-events:none;
-}
-.stApp::after {
-  content:""; position:fixed; z-index:2; pointer-events:none;
-  top:7vh; left:88vw; width:190px; height:2px; border-radius:50%;
-  background:linear-gradient(90deg,rgba(255,255,255,.98),rgba(190,239,255,.78) 32%,rgba(125,211,252,.25) 72%,transparent);
-  box-shadow:0 0 7px 1px rgba(186,230,253,.88),0 0 18px 4px rgba(56,189,248,.50);
-  mix-blend-mode:screen; opacity:0;
-  animation:aogShootingStar 24s ease-in-out infinite;
-}
-@media (prefers-reduced-motion: reduce) {
-  /* Matikan efek bintang jatuh, tetapi biarkan video pilihan pengguna tetap tampil. */
-  .stApp { animation:none !important; }
-  .stApp::after { display:none !important; animation:none !important; }
 }
 .block-container { padding-top: 3px !important; padding-bottom: 1rem; max-width: 1840px; }
 [data-testid="stAppViewBlockContainer"] { padding-top: 0 !important; }
@@ -812,10 +802,10 @@ left: -10px
 st.markdown(
     '<video class="aog-background-video" autoplay muted loop playsinline preload="auto" '
     'aria-hidden="true" tabindex="-1">'
-    '<source src="/app/static/bg_aog.mp4" type="video/mp4">'
-    '<source src="https://cdn.jsdelivr.net/gh/amperaofficial26-beep/AOGx-Council@main/ui/assets/bg_aog.mp4" '
+    '<source src="/app/static/bg_aog_slow.mp4" type="video/mp4">'
+    '<source src="https://cdn.jsdelivr.net/gh/amperaofficial26-beep/AOGx-Council@main/ui/assets/bg_aog_slow.mp4" '
     'type="video/mp4">'
-    '<source src="https://raw.githubusercontent.com/amperaofficial26-beep/AOGx-Council/main/ui/assets/bg_aog.mp4" '
+    '<source src="https://raw.githubusercontent.com/amperaofficial26-beep/AOGx-Council/main/ui/assets/bg_aog_slow.mp4" '
     'type="video/mp4"></video>',
     unsafe_allow_html=True,
 )
