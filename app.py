@@ -135,6 +135,7 @@ st.markdown("""
   79% { opacity:0; transform:translate3d(-78vw,66vh,0) rotate(145deg); }
 }
 .stApp {
+  position:relative; isolation:isolate; background-color:transparent !important;
   background-image:
     radial-gradient(circle,rgba(220,244,255,.62) 0 .7px,transparent 1.45px),
     radial-gradient(circle,rgba(125,211,252,.54) 0 .8px,transparent 1.6px),
@@ -146,6 +147,15 @@ st.markdown("""
   background-repeat:repeat;
   animation:aogStarDrift 24s linear infinite;
 }
+[data-testid="stAppViewContainer"], [data-testid="stMain"] {
+  background-color:transparent !important;
+}
+.aog-background-video {
+  position:fixed; inset:0; z-index:-1; display:block;
+  width:100vw; height:100vh; object-fit:cover; object-position:center;
+  opacity:.72; filter:brightness(.62) saturate(.9);
+  pointer-events:none;
+}
 .stApp::after {
   content:""; position:fixed; z-index:2; pointer-events:none;
   top:7vh; left:88vw; width:190px; height:2px; border-radius:50%;
@@ -156,7 +166,7 @@ st.markdown("""
 }
 @media (prefers-reduced-motion: reduce) {
   .stApp { animation:none !important; }
-  .stApp::after { display:none !important; animation:none !important; }
+  .stApp::after, .aog-background-video { display:none !important; animation:none !important; }
 }
 .block-container { padding-top: 3px !important; padding-bottom: 1rem; max-width: 1840px; }
 [data-testid="stAppViewBlockContainer"] { padding-top: 0 !important; }
@@ -747,8 +757,8 @@ body:not(:has(.st-key-council-chat-column)) [data-testid="stLayoutWrapper"]:has(
     border-radius:14px !important; box-shadow:none !important;
 }
 .st-key-chat-composer-shell [data-testid="stChatInput"] textarea {
-    width:100% !important; min-height:54px !important; padding:20px 2px !important;
-    line-height:1.45 !important; transform:none !important;
+    box-sizing:border-box !important; width:100% !important; min-height:44px !important;
+    padding:12px 2px !important; line-height:20px !important; transform:none !important;
 }
 .st-key-chat-composer-shell [data-testid="stChatInputFileUploadButton"] button {
     background:linear-gradient(145deg,rgba(76,29,149,.96),rgba(88,28,135,.92)) !important;
@@ -777,15 +787,13 @@ body:not(:has(.st-key-council-chat-column)) [data-testid="stLayoutWrapper"]:has(
 .st-key-chat-composer-shell [data-testid="stChatInput"] button[aria-label="Submit"] svg,
 .st-key-chat-composer-shell [data-testid="stChatInput"] button[aria-label*="Send"] svg,
 .st-key-chat-composer-shell [data-testid="stChatInputSubmitButton"] svg { opacity:0 !important; }
-.st-key-chat-composer-shell [data-testid="stChatInput"] button[aria-label="Submit"]::after, 
-.st-key-chat-composer-shell [data-testid="stChatInput"] button[aria-label*="Send"]::after, 
+.st-key-chat-composer-shell [data-testid="stChatInput"] button[aria-label="Submit"]::after,
+.st-key-chat-composer-shell [data-testid="stChatInput"] button[aria-label*="Send"]::after,
 .st-key-chat-composer-shell [data-testid="stChatInputSubmitButton"]::after {
     content:""; display:block; width:20px; height:20px; flex:0 0 20px;
     background:#fff;
     -webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M2.01%2021%2023%2012%202.01%203%202%2010l15%202-14.99%202z'/%3E%3C/svg%3E") center/contain no-repeat;
     mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M2.01%2021%2023%2012%202.01%203%202%2010l15%202-14.99%202z'/%3E%3C/svg%3E") center/contain no-repeat;
-position: relative;
-left: -10px;
 }
 .st-key-chat-composer-shell .st-key-github-repo-toolbar {
     position: static !important;
@@ -817,6 +825,12 @@ left: -10px;
 }
 </style>
 """, unsafe_allow_html=True)
+st.markdown(
+    '<video class="aog-background-video" autoplay muted loop playsinline preload="auto" '
+    'aria-hidden="true" tabindex="-1"><source src="/app/static/bg_aog.mp4" '
+    'type="video/mp4"></video>',
+    unsafe_allow_html=True,
+)
 
 
 # ---------- Gerbang kode akses (opsional) ----------
