@@ -135,6 +135,7 @@ st.markdown("""
   79% { opacity:0; transform:translate3d(-78vw,66vh,0) rotate(145deg); }
 }
 .stApp {
+  position:relative; isolation:isolate; background-color:transparent !important;
   background-image:
     radial-gradient(circle,rgba(220,244,255,.62) 0 .7px,transparent 1.45px),
     radial-gradient(circle,rgba(125,211,252,.54) 0 .8px,transparent 1.6px),
@@ -146,6 +147,15 @@ st.markdown("""
   background-repeat:repeat;
   animation:aogStarDrift 24s linear infinite;
 }
+[data-testid="stAppViewContainer"], [data-testid="stMain"] {
+  background-color:transparent !important;
+}
+.aog-background-video {
+  position:fixed; inset:0; z-index:-1; display:block;
+  width:100vw; height:100vh; object-fit:cover; object-position:center;
+  opacity:.72; filter:brightness(.62) saturate(.9);
+  pointer-events:none;
+}
 .stApp::after {
   content:""; position:fixed; z-index:2; pointer-events:none;
   top:7vh; left:88vw; width:190px; height:2px; border-radius:50%;
@@ -156,7 +166,7 @@ st.markdown("""
 }
 @media (prefers-reduced-motion: reduce) {
   .stApp { animation:none !important; }
-  .stApp::after { display:none !important; animation:none !important; }
+  .stApp::after, .aog-background-video { display:none !important; animation:none !important; }
 }
 .block-container { padding-top: 3px !important; padding-bottom: 1rem; max-width: 1840px; }
 [data-testid="stAppViewBlockContainer"] { padding-top: 0 !important; }
@@ -815,6 +825,12 @@ body:not(:has(.st-key-council-chat-column)) [data-testid="stLayoutWrapper"]:has(
 }
 </style>
 """, unsafe_allow_html=True)
+st.markdown(
+    '<video class="aog-background-video" autoplay muted loop playsinline preload="auto" '
+    'aria-hidden="true" tabindex="-1"><source src="/app/static/bg_aog.mp4" '
+    'type="video/mp4"></video>',
+    unsafe_allow_html=True,
+)
 
 
 # ---------- Gerbang kode akses (opsional) ----------
