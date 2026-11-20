@@ -49,10 +49,13 @@ def render_brand_header():
 
 
 def render_council_hero():
-    """Large centered brand mark shown on the minimal Council chat page."""
+    """Centered Council welcome, using the existing brand and chat entry point."""
     st.markdown(
-        f'<div class="aog-council-hero">{_logo_img()}'
-        '<div class="aog-title">AOGx Council</div></div>',
+        '<section class="aog-council-hero">'
+        f'<div class="aog-council-hero-mark">{_logo_img()}</div>'
+        '<h1>Ada ide di pikiranmu? <span>Ayo ngobrol.</span></h1>'
+        '<p>Tanyakan apa saja—ide, pekerjaan, atau hal baru. AOGx Council siap membantu.</p>'
+        '</section>',
         unsafe_allow_html=True,
     )
 
@@ -153,26 +156,18 @@ st.markdown("""
 }
 .block-container { padding-top: 3px !important; padding-bottom: 1rem; max-width: 1840px; }
 [data-testid="stAppViewBlockContainer"] { padding-top: 0 !important; }
-/* Keep the Council desktop composition fixed at the 1840px wide layout.
-   Browser zoom still scales the canvas; narrow viewports scroll instead of reflowing it. */
+/* Keep Council content centered on wide screens without imposing a fixed canvas. */
 @media (hover: hover) and (pointer: fine) {
-  body:has(.st-key-council-chat-column),
-  body:has(.st-key-council-chat-column) .stApp,
-  body:has(.st-key-council-chat-column) [data-testid="stAppViewContainer"] {
-    min-width:1840px !important;
-  }
   body:has(.st-key-council-chat-column) .block-container {
-    width:1840px !important; min-width:1840px !important;
+    width:100% !important; min-width:0 !important;
     max-width:1840px !important; box-sizing:border-box !important;
   }
-  .st-key-council-chat-column { width:1120px !important; max-width:1120px !important; }
-  .aog-council-hero .aog-title { font-size:4.4rem !important; }
+  .st-key-council-chat-column { width:min(100%,1120px) !important; max-width:1120px !important; }
   .st-key-council-chat-column .st-key-chat-history,
   .st-key-council-chat-column .st-key-chat-history [data-testid="stVerticalBlockBorderWrapper"] {
     height:870px !important; max-height:870px !important;
   }
   .st-key-council-chat-column .st-key-chat-history { margin-bottom:-130px !important; }
-  .aog-council-empty-spacer { height:260px !important; }
 }
 #MainMenu, footer { visibility: hidden; }
 header[data-testid="stHeader"] { display:none !important; height:0 !important; }
@@ -188,21 +183,41 @@ html:has(.st-key-council-chat-column) { font-size:110% !important; }
 .aog-brand-header img { display:block; width:60px; height:60px; object-fit:contain;
   filter:drop-shadow(0 0 10px rgba(56,231,211,.24)); }
 .aog-brand-header .aog-title { margin:0; white-space:nowrap; }
-.aog-council-hero { display:flex; align-items:center; justify-content:center; gap:22px;
-  margin:.65rem auto 1.25rem; text-align:center; flex-wrap:wrap; max-height:260px; }
-.aog-council-hero img { display:block; width:128px; height:128px; object-fit:contain; }
-.aog-council-hero .aog-title { margin:0; font-size:clamp(3rem,5.2vw,4.4rem); }
+.aog-council-hero {
+  display:flex; flex-direction:column; align-items:center; gap:18px;
+  max-height:320px; margin:.6rem auto 0; padding:0 18px;
+  text-align:center; overflow:hidden;
+}
+.aog-council-hero-mark {
+  width:70px; height:70px; display:grid; place-items:center; flex:0 0 auto;
+  border:1px solid transparent; border-radius:50%;
+  background:linear-gradient(#090d14,#090d14) padding-box,
+    linear-gradient(135deg,#38e7d3,#6475ff 58%,#a855f7) border-box;
+  box-shadow:0 0 28px rgba(56,189,248,.13),inset 0 0 18px rgba(99,102,241,.10);
+}
+.aog-council-hero-mark img {
+  display:block; width:38px; height:38px; object-fit:contain;
+  filter:drop-shadow(0 0 7px rgba(56,231,211,.3));
+}
+.aog-council-hero h1 {
+  margin:0; color:#f3f4f6; font-size:clamp(1.65rem,3.4vw,2.45rem);
+  font-weight:700; letter-spacing:-.035em; line-height:1.2;
+}
+.aog-council-hero h1 span {
+  background:linear-gradient(95deg,#34d399,#22d3ee 52%,#818cf8);
+  -webkit-background-clip:text; background-clip:text; color:transparent;
+}
+.aog-council-hero p {
+  max-width:620px; margin:-8px 0 0; color:#929bad;
+  font-size:.9rem; line-height:1.65;
+}
 body:has(.aog-council-chat-started) .aog-council-hero {
-  overflow:hidden; pointer-events:none;
-  animation:aogCouncilHeroExit 720ms cubic-bezier(.22,.76,.24,1) both;
+  pointer-events:none; animation:aogCouncilHeroExit 720ms cubic-bezier(.22,.76,.24,1) both;
 }
 @keyframes aogCouncilHeroExit {
-  0% { max-height:260px; margin-top:.65rem; margin-bottom:1.25rem;
-    opacity:1; filter:blur(0); transform:translateY(0) scale(1); }
-  58% { max-height:148px; margin-top:.3rem; margin-bottom:.55rem;
-    opacity:.56; filter:blur(3px); transform:translateY(-12px) scale(.97); }
-  100% { max-height:0; margin-top:0; margin-bottom:0;
-    opacity:0; filter:blur(11px); transform:translateY(-32px) scale(.92); }
+  0% { max-height:320px; margin-top:.6rem; opacity:1; filter:blur(0); transform:translateY(0); }
+  58% { max-height:150px; margin-top:.25rem; opacity:.55; filter:blur(3px); transform:translateY(-12px) scale(.97); }
+  100% { max-height:0; margin-top:0; opacity:0; filter:blur(10px); transform:translateY(-28px) scale(.94); }
 }
 .st-key-council-chat-column { width:min(100%,1120px) !important; margin:0 auto !important; }
 .st-key-council-chat-column:has(.aog-council-chat-started) {
@@ -337,17 +352,17 @@ body:has(.aog-council-chat-started) .aog-council-hero {
     animation:none; opacity:1; transform:none;
   }
 }
+.st-key-council-chat-column:not(:has(.aog-council-chat-started)) {
+    width:min(calc(100vw - 32px),860px) !important;
+}
 .st-key-council-chat-column:not(:has(.aog-council-chat-started)) .st-key-chat-composer-shell {
-    position:relative !important; bottom:auto !important; margin:0 auto !important; flex:0 0 auto !important;
+    position:relative !important; bottom:auto !important; width:100% !important;
+    margin:1.8rem auto 0 !important; flex:0 0 auto !important;
 }
 .st-key-council-chat-column [data-testid="stElementContainer"]:has(.aog-council-chat-started) {
     display:none !important;
 }
-.st-key-council-chat-column [data-testid="stElementContainer"]:has(.aog-council-empty-spacer) {
-    margin:0 !important;
-}
 .aog-council-chat-started { display:none !important; }
-.aog-council-empty-spacer { width:100%; height:clamp(150px,26vh,260px); }
 /* ---------- Top bar: glass command bar, full-bleed and pinned to the viewport ---------- */
 :root { --aog-topbar-height:88px; }
 html, .stMain { scroll-padding-top:calc(var(--aog-topbar-height) + 12px) !important; }
@@ -2150,16 +2165,14 @@ draw()
 CHAT_TAIL = '<div style="height:64px"></div>'
 
 with left:
-    # Agent Code keeps a fixed-height transcript. Council reserves an empty spacer before
-    # the composer, then fills the transcript slot above it once a conversation starts.
+    # Agent Code keeps a fixed-height transcript; Council fills its transcript slot only after the first message.
     if is_agent_code_page:
         chat_box = st.container(height=700, border=False, key="chat-history")
     else:
         council_transcript_slot = st.empty()
-        council_empty_spacer_slot = st.empty()
     with st.container(key="chat-composer-shell"):
         prompt = ("Kirim pesan ke AOGx Agent Code…" if is_agent_code_page
-                  else "Kirim pesan ke AOGx Council…")
+                  else "Kirim pesan…")
         chat_input_key = ("agent-code-chat-input" if is_agent_code_page
                           else "council-chat-input")
         try:
@@ -2188,12 +2201,9 @@ with left:
             github_pr_panel()
     if not is_agent_code_page:
         if messages or question:
-            council_empty_spacer_slot.empty()
             with council_transcript_slot.container():
                 chat_box = st.container(height=700, border=False, key="chat-history")
         else:
-            council_empty_spacer_slot.markdown(
-                '<div class="aog-council-empty-spacer"></div>', unsafe_allow_html=True)
             chat_box = None
 
 # On rerun, consume each page's transient chat_input independently to avoid duplicate turns.
