@@ -189,7 +189,7 @@ html:has(.st-key-council-chat-column) { font-size:110% !important; }
   text-align:center; overflow:hidden;
 }
 .aog-council-hero-mark {
-  width:min(208px,100%); height:auto; aspect-ratio:1; display:grid; place-items:center; flex:0 0 auto;
+  width:min(160px,100%); height:auto; aspect-ratio:1; display:grid; place-items:center; flex:0 0 auto;
   border:1px solid transparent; border-radius:50%;
   background:linear-gradient(#090d14,#090d14) padding-box,
     linear-gradient(135deg,#38e7d3,#6475ff 58%,#a855f7) border-box;
