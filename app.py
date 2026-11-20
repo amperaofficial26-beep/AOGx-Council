@@ -170,8 +170,9 @@ st.markdown("""
   animation:aogShootingStar 24s ease-in-out infinite;
 }
 @media (prefers-reduced-motion: reduce) {
+  /* Matikan efek bintang jatuh, tetapi biarkan video pilihan pengguna tetap tampil. */
   .stApp { animation:none !important; }
-  .stApp::after, .aog-background-video { display:none !important; animation:none !important; }
+  .stApp::after { display:none !important; animation:none !important; }
 }
 .block-container { padding-top: 3px !important; padding-bottom: 1rem; max-width: 1840px; }
 [data-testid="stAppViewBlockContainer"] { padding-top: 0 !important; }
