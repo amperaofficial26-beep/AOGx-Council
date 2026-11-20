@@ -747,8 +747,8 @@ body:not(:has(.st-key-council-chat-column)) [data-testid="stLayoutWrapper"]:has(
     border-radius:14px !important; box-shadow:none !important;
 }
 .st-key-chat-composer-shell [data-testid="stChatInput"] textarea {
-    width:100% !important; min-height:54px !important; padding:7px 2px !important;
-    line-height:1.45 !important; transform:none !important;
+    box-sizing:border-box !important; width:100% !important; min-height:44px !important;
+    padding:12px 2px !important; line-height:20px !important; transform:none !important;
 }
 .st-key-chat-composer-shell [data-testid="stChatInputFileUploadButton"] button {
     background:linear-gradient(145deg,rgba(76,29,149,.96),rgba(88,28,135,.92)) !important;
