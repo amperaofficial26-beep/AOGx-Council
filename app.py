@@ -122,30 +122,6 @@ st.markdown(machine.CSS, unsafe_allow_html=True)
 st.markdown(thinking.CSS, unsafe_allow_html=True)
 st.markdown("""
 <style>
-/* Starfield terang berlapis dan meteor sesekali melintas diagonal. */
-@keyframes aogStarDrift {
-  0% { background-position:0 0,0 0,0 0,0 0,0 0; }
-  50% { background-position:105px -95px,-142.5px 127.5px,87.5px 117.5px,-182.5px -157.5px,215px 195px,-162.5px 140px; }
-  100% { background-position:210px -190px,-285px 255px,175px 235px,-365px -315px,430px 390px,-325px 280px; }
-}
-@keyframes aogShootingStar {
-  0%,70%,100% { opacity:0; transform:translate3d(0,0,0) rotate(145deg); }
-  72% { opacity:1; transform:translate3d(-7vw,6vh,0) rotate(145deg); }
-  74% { opacity:.95; transform:translate3d(-24vw,22vh,0) rotate(145deg); }
-  79% { opacity:0; transform:translate3d(-78vw,66vh,0) rotate(145deg); }
-}
-.stApp {
-  position:relative; isolation:isolate; background-color:transparent !important;
-  background-image:
-    radial-gradient(circle,rgba(220,244,255,.62) 0 .7px,transparent 1.45px),
-    radial-gradient(circle,rgba(125,211,252,.54) 0 .8px,transparent 1.6px),
-    radial-gradient(circle,rgba(196,181,253,.46) 0 .7px,transparent 1.5px),
-    radial-gradient(circle,rgba(255,255,255,.42) 0 .65px,transparent 1.4px),
-    radial-gradient(circle,rgba(255,255,255,.96) 0 .8px,rgba(125,211,252,.66) 1.2px,transparent 3px),
-    radial-gradient(circle,rgba(255,255,255,.88) 0 .7px,rgba(196,181,253,.56) 1.2px,transparent 2.8px);
-  background-size:210px 190px,285px 255px,175px 235px,365px 315px,430px 390px,325px 280px;
-  background-repeat:repeat;
-  animation:aogStarDrift 24s linear infinite;
 }
 [data-testid="stAppViewContainer"] {
   position:relative !important; isolation:isolate !important; z-index:0 !important;
