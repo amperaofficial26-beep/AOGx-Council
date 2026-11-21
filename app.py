@@ -22,6 +22,7 @@ from providers.github import (
     GitHubClient, GitHubError, make_oauth_state, verify_oauth_state, exchange_oauth_code,
 )
 from ui import machine, neural, theme, thinking
+from ui.build_page import render_build_page
 from ui.flow import CouncilFlow
 
 _AVATAR_PATH = Path(__file__).resolve().parent / "ui" / "assets" / "aogx-mark.png"
@@ -73,6 +74,7 @@ def render_topbar():
     pages = [
         ("Council", "AOGx Council", ":material/home:"),
         ("Agent code", "AOGx Agent Code", ":material/code:"),
+        ("Build", "AOGx Build", ":material/build:"),
         ("Privacy", "Privacy Policy", ":material/policy:"),
         ("Help", "Help & Fallback", ":material/help:"),
         ("Account", "Kartu Akun", ":material/account_circle:"),
@@ -2103,6 +2105,10 @@ active = [] if demo else active_provider_names
 # The Council page is the minimal chat; Agent Code receives the full Council workspace.
 render_topbar()
 current_page = ss.active_topbar_page
+if current_page == "AOGx Build":
+    # Halaman BUILD berdiri sendiri (build/ + ui/build_page.py); pipeline Council tidak diubah.
+    render_build_page(router=router, ss=ss)
+    st.stop()
 if current_page not in ("AOGx Council", "AOGx Agent Code"):
     st.stop()
 is_agent_code_page = current_page == "AOGx Agent Code"

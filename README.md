@@ -22,6 +22,41 @@ Belum ada API key? App otomatis masuk **mode demo**: alur yang sama dijalankan d
 pakai, tanpa panggilan API. Tombol "Tampilkan di mesin" pada setiap jawaban memutar ulang proses
 untuk pertanyaan tersebut. Tema gelap diatur di `.streamlit/config.toml`.
 
+## Halaman BUILD (Tahap 1)
+Halaman **AOGx Build** (ikon build di top bar) menjalankan alur bantu-buat-aplikasi dalam 6 langkah:
+permintaan satu kalimat -> pilihan aplikasi referensi (AI menawarkan pilihan sesuai permintaan,
+pengguna boleh memilih satu, menggabungkan beberapa, atau membiarkan AI menentukan; referensi di
+luar daftar juga bisa ditambahkan) -> bentuk aplikasi (Web Application, Streamlit + GitHub, Raw
+Source Code, Desktop Application) -> verifikasi limit -> proses -> hasil.
+
+- **Limit**: setiap aksi BUILD menghabiskan satu jatah. Hitungan disimpan di **Supabase**
+  (bukan session state) dan direset otomatis setelah 3 hari. Tanpa Supabase, hitungan jatuh ke
+  memori proses dan UI menampilkan peringatan. Kalimat konfirmasi yang ditampilkan adalah:
+  `tindakan ini akan menghabiskan jatah limit aogx anda,limit akan di reset setelah 3 hari, apakah anda ingin lanjut?`
+- **RESEARCH** (Tavily + provider): fitur & cara kerja, kelebihan/kekurangan, keluhan pengguna,
+  bug publik, tampilan & navigasi, workflow, teknologi & API. Setiap klaim menyimpan URL sumbernya;
+  topik tanpa bukti ditulis "tidak ditemukan" (tidak ada karangan).
+- **ANALISIS**: kekurangan, titik sulit pengguna, peluang perbaikan, fitur baru, lalu konsep
+  aplikasi alternatif dengan identitas desain sendiri.
+- **PRODUCT PLANNING**: nama, konsep, target, fitur inti (versi inti lebih dulu), fitur tambahan
+  untuk tahap revisi, UI/UX, struktur halaman, alur, backend/database, integrasi AI, teknologi.
+- Tampilan hasil memakai tab Ringkasan/Riset/Analisis/Blueprint/Sumber; gagal proses menawarkan
+  "Coba lagi" maksimal 3 percobaan (`BUILD_MAX_REPAIR_ATTEMPTS`).
+
+Tahap berikutnya (belum diaktifkan): agen builder + pemeriksaan statis (Tahap 2), testing
+otomatis GitHub Actions (Tahap 3), preview/revisi/manajemen proyek (Tahap 4). Kode hasil build
+tidak pernah dijalankan di dalam proses Streamlit; di cloud hanya pemeriksaan statis.
+
+Tabel Supabase untuk jatah (buat sekali di SQL Editor):
+```sql
+create table if not exists build_limits (
+  user_key text primary key,
+  build_count integer not null default 0,
+  window_start timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+```
+
 ## Jalankan lokal
 ```
 pip install -r requirements.txt
@@ -39,10 +74,15 @@ agar app hanya bisa dibuka orang yang tahu kodenya. Jangan commit `.env` atau `s
 ```
 python -m unittest discover -s tests -t .   # tanpa butuh API key
 ```
+Termasuk uji jatah BUILD (`tests/test_build_limits.py`) dan pipeline BUILD
+(`tests/test_build_pipeline.py`) yang berjalan offline dengan router/tavily palsu.
 
 ## Mengatur agen
 - `config.py`: model default, rute fallback per peran (`ROUTES`), model khusus per peran (`ROLE_MODELS`),
-  mode kedalaman (`MODES`), ambang kualitas, batas pemakaian.
-- `agent/`: prompt tiap agen (orchestrator, researcher, debaters, synthesizer, verifier). `core/pipeline.py`: urutan lapisan.
+  mode kedalaman (`MODES`), ambang kualitas, batas pemakaian, rute & batas BUILD.
+- `agent/`: prompt tiap agen (orchestrator, researcher, debaters, synthesizer, verifier) plus agen
+  BUILD (`build_interview`, `build_research`, `build_analyst`, `build_planner`).
+  `core/pipeline.py`: urutan lapisan Council; `build/pipeline.py`: urutan tahap BUILD.
 - `ui/`: lapisan tampilan saja — `flow.py` (graf proses: status node + HTML/SVG), `theme.py` (CSS),
-  `machine.py` (kubus + panel alur), `demo.py` (router tiruan untuk mode demo). `core/` dan `agent/` tidak tahu-menahu soal UI.
+  `machine.py` (kubus + panel alur), `demo.py` (router tiruan untuk mode demo),
+  `build_page.py` (halaman BUILD). `core/` dan `agent/` tidak tahu-menahu soal UI.
