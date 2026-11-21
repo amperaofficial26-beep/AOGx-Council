@@ -110,3 +110,15 @@ QUALITY_THRESHOLD = 0.7  # skor verifikasi minimal (0-1) agar jawaban dianggap l
 # Batas penggunaan (melindungi kuota API kalau app dibuka untuk orang lain)
 MAX_QUESTION_CHARS = 3000
 MAX_REQUESTS_PER_SESSION = 30
+
+# ---- Fitur BUILD ----
+# Rute fallback agen BUILD (memakai provider gratis yang sama dengan rute lain).
+# Penyimpanan jatah BUILD ada di build/limits.py (Supabase, reset tiap 3 hari).
+BUILD_LIMIT_RESET_DAYS = 3  # jatah BUILD direset otomatis setelah 3 hari
+BUILD_MAX_REPAIR_ATTEMPTS = 3  # batas percobaan perbaikan saat loop testing (Tahap 3)
+ROUTES.update({
+    "build_interview": ["groq", "openrouter", "gemini"],
+    "build_research":  ["groq", "openrouter", "gemini"],
+    "build_analyst":   ["gemini", "openrouter", "groq"],
+    "build_planner":   ["gemini", "openrouter", "groq"],
+})
