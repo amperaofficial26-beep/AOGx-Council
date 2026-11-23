@@ -8,8 +8,8 @@ mengulang revisi bila skor di bawah ambang.
 Tanpa sidebar. Halaman **AOGx Council** menyediakan chat minimal dengan mode **Normal** (satu putaran
 dan verifikasi) dan **Flash** (satu panggilan langsung tanpa putaran/verifikasi). Groq GPT-OSS 120B
 diprioritaskan untuk perencanaan, riset, sintesis, dan jawaban Flash. Halaman **AOGx Agent Code**
-mempertahankan mode **Seimbang** (dua putaran) dan **Mendalam** (tiga putaran) bersama workspace
-proses dan GitHub.
+mempertahankan mode **Seimbang** (dua putaran), **Mendalam** (tiga putaran), dan **BUILD**
+(bantu-buat-aplikasi, Tahap 1) bersama workspace proses dan GitHub.
 
 Mesin kanan terdiri dari kubus isometrik untuk 7 agen yang tersambung lewat jaringan hub "State",
 plus panel **Alur Council** (START, State, Orchestrator, Researcher / Debat 3 agen, Penyusun,
@@ -22,8 +22,9 @@ Belum ada API key? App otomatis masuk **mode demo**: alur yang sama dijalankan d
 pakai, tanpa panggilan API. Tombol "Tampilkan di mesin" pada setiap jawaban memutar ulang proses
 untuk pertanyaan tersebut. Tema gelap diatur di `.streamlit/config.toml`.
 
-## Halaman BUILD (Tahap 1)
-Halaman **AOGx Build** (ikon build di top bar) menjalankan alur bantu-buat-aplikasi dalam 6 langkah:
+## Mode BUILD di AOGx Agent Code (Tahap 1)
+Mode **BUILD** (pilihan ketiga di popover mode, di samping Seimbang dan Mendalam) menjalankan
+alur bantu-buat-aplikasi dalam 6 langkah:
 permintaan satu kalimat -> pilihan aplikasi referensi (AI menawarkan pilihan sesuai permintaan,
 pengguna boleh memilih satu, menggabungkan beberapa, atau membiarkan AI menentukan; referensi di
 luar daftar juga bisa ditambahkan) -> bentuk aplikasi (Web Application, Streamlit + GitHub, Raw
@@ -85,4 +86,4 @@ Termasuk uji jatah BUILD (`tests/test_build_limits.py`) dan pipeline BUILD
   `core/pipeline.py`: urutan lapisan Council; `build/pipeline.py`: urutan tahap BUILD.
 - `ui/`: lapisan tampilan saja — `flow.py` (graf proses: status node + HTML/SVG), `theme.py` (CSS),
   `machine.py` (kubus + panel alur), `demo.py` (router tiruan untuk mode demo),
-  `build_page.py` (halaman BUILD). `core/` dan `agent/` tidak tahu-menahu soal UI.
+  `build_page.py` (mode BUILD). `core/` dan `agent/` tidak tahu-menahu soal UI.

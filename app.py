@@ -1,6 +1,6 @@
 """AOGx-Council: diskusi multi-agen AI dengan orchestrator dan penyaringan jawaban berlapis.
 
-AOGx Agent Code menampilkan workspace chat dan mesin proses; AOGx Council berisi chat minimal.
+AOGx Agent Code menampilkan workspace chat, mesin proses, dan mode BUILD; AOGx Council berisi chat minimal.
 """
 import base64
 import difflib
@@ -74,7 +74,6 @@ def render_topbar():
     pages = [
         ("Council", "AOGx Council", ":material/home:"),
         ("Agent code", "AOGx Agent Code", ":material/code:"),
-        ("Build", "AOGx Build", ":material/build:"),
         ("Privacy", "Privacy Policy", ":material/policy:"),
         ("Help", "Help & Fallback", ":material/help:"),
         ("Account", "Kartu Akun", ":material/account_circle:"),
@@ -856,9 +855,9 @@ ss.setdefault("n_requests", 0)
 ss.setdefault("agent_code_messages", [])
 ss.setdefault("agent_code_n_requests", 0)
 ss.setdefault("agent_code_mode", "Seimbang")
-if ss.agent_code_mode not in ("Seimbang", "Mendalam"):
+if ss.agent_code_mode not in ("Seimbang", "Mendalam", "BUILD"):
     ss.agent_code_mode = "Seimbang"
-if ss.get("agent_code_mode_pick") not in (None, "Seimbang", "Mendalam"):
+if ss.get("agent_code_mode_pick") not in (None, "Seimbang", "Mendalam", "BUILD"):
     ss.pop("agent_code_mode_pick", None)
 ss.setdefault("agent_code_mode_pick", ss.agent_code_mode)
 ss.setdefault("council_mode", "Normal")
@@ -874,6 +873,11 @@ if ss.get("council_mode_pick") not in ("Normal", "Flash"):
 # Re-evaluate current credentials each rerun instead of preserving a stale demo flag.
 ss.demo = not bool(active_provider_names)
 ss.setdefault("active_topbar_page", "AOGx Council")
+# Migrasi sesi lama: halaman Build terpisah menjadi mode BUILD di AOGx Agent Code.
+if ss.get("active_topbar_page") == "AOGx Build":
+    ss["active_topbar_page"] = "AOGx Agent Code"
+    ss["agent_code_mode"] = "BUILD"
+    ss["agent_code_mode_pick"] = "BUILD"
 
 
 def history_text(messages, pairs: int = 3) -> str:
@@ -1623,6 +1627,7 @@ MODE_HELP = {
     "Cepat": "1 putaran, tanpa verifikasi",
     "Seimbang": "2 putaran + verifikasi",
     "Mendalam": "3 putaran + verifikasi ketat (kuota lebih banyak)",
+    "BUILD": "bantu-buat-aplikasi dari satu perintah (Tahap 1)",
 }
 
 
@@ -1648,7 +1653,7 @@ def render_composer_controls(mode: str, messages: list, is_agent_code_page: bool
                             use_container_width=True):
                 if is_agent_code_page:
                     st.radio(
-                        "Kedalaman diskusi", ("Seimbang", "Mendalam"),
+                        "Kedalaman diskusi", ("Seimbang", "Mendalam", "BUILD"),
                         key="agent_code_mode_pick", on_change=pick_mode,
                         format_func=lambda name: "Menengah" if name == "Seimbang" else name,
                         label_visibility="collapsed",
@@ -2105,10 +2110,6 @@ active = [] if demo else active_provider_names
 # The Council page is the minimal chat; Agent Code receives the full Council workspace.
 render_topbar()
 current_page = ss.active_topbar_page
-if current_page == "AOGx Build":
-    # Halaman BUILD berdiri sendiri (build/ + ui/build_page.py); pipeline Council tidak diubah.
-    render_build_page(router=router, ss=ss)
-    st.stop()
 if current_page not in ("AOGx Council", "AOGx Agent Code"):
     st.stop()
 is_agent_code_page = current_page == "AOGx Agent Code"
@@ -2118,7 +2119,12 @@ if is_agent_code_page:
     active_request_count_key = "agent_code_n_requests"
     active_flow_key = "agent_code_flow"
     mode = ss.agent_code_mode
-    left, right = st.columns([2, 2], gap="medium")
+    if mode == "BUILD":
+        # Mode BUILD: wizard build/ tampil selebar penuh; mesin Council dilewati.
+        left = st.container()
+        right = None
+    else:
+        left, right = st.columns([2, 2], gap="medium")
 else:
     active_messages_key = "messages"
     active_request_count_key = "n_requests"
@@ -2135,13 +2141,15 @@ cfg = (config.MODES.get(mode) or config.MODES.get("Seimbang")
 
 # Council's process visualization remains in Agent Code, while chat stays available on both pages.
 flow = ss.get(active_flow_key)
-if flow is None:
+# Mode BUILD tidak memakai mesin Council; alur placeholder hanya dibuat untuk mode diskusi
+# agar chip "Mode" tidak menampilkan "BUILD" setelah pengguna kembali ke Seimbang/Mendalam.
+if flow is None and mode != "BUILD":
     flow = CouncilFlow(mode_name=mode, rounds=cfg["rounds"], verify=cfg["verify"],
                        max_retries=cfg["max_retries"])
     flow.preview()
 ss[active_flow_key] = flow
 
-if is_agent_code_page:
+if is_agent_code_page and right is not None:
     with right:
         st.markdown(":material/hub: **Mesin proses**")
         ph_chips = st.empty()
@@ -2156,7 +2164,7 @@ else:
 
 
 def draw(redraw_log: bool = True):
-    if not is_agent_code_page:
+    if not is_agent_code_page or right is None:
         return
     ph_chips.markdown(theme.panel(flow.render_chips() + theme.LEGEND), unsafe_allow_html=True)
     neural.show(ph_graph, flow, graph_cache)
@@ -2171,6 +2179,12 @@ draw()
 CHAT_TAIL = '<div style="height:64px"></div>'
 
 with left:
+    if is_agent_code_page and mode == "BUILD":
+        # Mode BUILD: wizard build tampil selebar penuh; mesin Council dilewati.
+        # Pemilih mode tetap dirender agar pengguna bisa kembali ke Seimbang/Mendalam.
+        render_composer_controls(mode, messages, is_agent_code_page)
+        render_build_page(router=router, ss=ss)
+        st.stop()
     # Agent Code keeps a fixed-height transcript; Council fills its transcript slot only after the first message.
     if is_agent_code_page:
         chat_box = st.container(height=700, border=False, key="chat-history")
