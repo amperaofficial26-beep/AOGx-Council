@@ -21,7 +21,7 @@ from core.utils import clip, extract_json
 from providers.github import (
     GitHubClient, GitHubError, make_oauth_state, verify_oauth_state, exchange_oauth_code,
 )
-from ui import machine, neural, theme, thinking
+from ui import neural, theme, thinking
 from ui.build_page import render_build_page
 from ui.flow import CouncilFlow
 
@@ -122,15 +122,17 @@ st.set_page_config(page_title="AOGx Council", page_icon=":material/hub:", layout
                    initial_sidebar_state="collapsed")
 
 st.markdown(theme.CSS, unsafe_allow_html=True)
-st.markdown(machine.CSS, unsafe_allow_html=True)
 st.markdown(thinking.CSS, unsafe_allow_html=True)
 st.markdown("""
 <style>
-/* Dasar hitam dengan cahaya aurora lembut yang perlahan berubah warna. */
+/* Dasar hitam dengan cahaya aurora lembut yang perlahan bergeser.
+   Performa: filter (blur+hue-rotate) TIDAK dianimasikan — menganimasikan filter
+   memaksa browser merender ulang seluruh lapisan (seukuran layar) tiap frame.
+   Blur kini statis (dirender sekali); yang bergerak hanya transform (GPU). */
 @keyframes aogAmbientShift {
-  0% { transform:translate3d(-2%,-1%,0) scale(1); filter:blur(74px) hue-rotate(0deg); }
-  50% { transform:translate3d(2%,2%,0) scale(1.08); filter:blur(92px) hue-rotate(115deg); }
-  100% { transform:translate3d(-1%,3%,0) scale(1.03); filter:blur(80px) hue-rotate(235deg); }
+  0% { transform:translate3d(-2%,-1%,0) scale(1); }
+  50% { transform:translate3d(2%,2%,0) scale(1.08); }
+  100% { transform:translate3d(-1%,3%,0) scale(1.03); }
 }
 .stApp {
   position:relative; isolation:isolate; background-color:#020409 !important;
@@ -142,7 +144,8 @@ st.markdown("""
     radial-gradient(ellipse 36% 40% at 82% 24%,rgba(139,92,246,.34),transparent 72%),
     radial-gradient(ellipse 46% 40% at 52% 84%,rgba(236,72,153,.24),transparent 74%),
     radial-gradient(ellipse 30% 36% at 8% 80%,rgba(249,115,22,.20),transparent 72%);
-  opacity:.68; animation:aogAmbientShift 28s ease-in-out infinite alternate;
+  filter:blur(82px); opacity:.68;
+  animation:aogAmbientShift 28s ease-in-out infinite alternate;
 }
 [data-testid="stAppViewContainer"] {
   position:relative !important; isolation:isolate !important; z-index:0 !important;
@@ -153,7 +156,7 @@ st.markdown("""
   background-color:transparent !important;
 }
 @media (prefers-reduced-motion: reduce) {
-  .stApp::before { animation:none !important; filter:blur(82px) hue-rotate(80deg); }
+  .stApp::before { animation:none !important; filter:blur(82px); }
 }
 .block-container { padding-top: 3px !important; padding-bottom: 1rem; max-width: 1840px; }
 [data-testid="stAppViewBlockContainer"] { padding-top: 0 !important; }
@@ -262,13 +265,13 @@ body:has(.aog-council-chat-started) .aog-council-hero {
     radial-gradient(ellipse at 10% 52%,rgba(255,105,72,.76) 0%,rgba(255,129,83,.3) 34%,transparent 68%),
     radial-gradient(ellipse at 90% 48%,rgba(76,137,255,.82) 0%,rgba(110,82,255,.32) 36%,transparent 70%),
     radial-gradient(ellipse at 50% 54%,rgba(173,77,255,.25) 0%,transparent 70%);
-  filter:blur(34px) hue-rotate(0deg); opacity:.38; pointer-events:none;
+  filter:blur(34px); opacity:.38; pointer-events:none;
   animation:aogCouncilGlowColors 10s ease-in-out infinite;
 }
 @keyframes aogCouncilGlowColors {
-  0%,100% { filter:blur(34px) hue-rotate(0deg); opacity:.34; }
-  33% { filter:blur(34px) hue-rotate(75deg); opacity:.42; }
-  66% { filter:blur(34px) hue-rotate(195deg); opacity:.46; }
+  0%,100% { opacity:.34; }
+  33% { opacity:.42; }
+  66% { opacity:.46; }
 }
 /* Compact composer footer: one mode pill + icon-only new chat, not a full-width toolbar. */
 .st-key-composer-controls { margin-top:.2rem !important; }
@@ -398,7 +401,9 @@ body:not(:has(.st-key-council-chat-column)) [data-testid="stLayoutWrapper"]:has(
     background:linear-gradient(180deg,rgba(10,15,25,.97),rgba(7,12,20,.93)) !important;
     border:0 !important; border-bottom:1px solid rgba(148,163,184,.16) !important;
     box-shadow:0 10px 34px rgba(0,0,0,.38), inset 0 -1px rgba(255,255,255,.02) !important;
-    -webkit-backdrop-filter:blur(22px) saturate(150%); backdrop-filter:blur(22px) saturate(150%);
+    /* backdrop-filter dihapus: latar topbar sudah ~95% opak sehingga efeknya
+       nyaris tak terlihat, tapi memaksa browser memblur area di belakangnya
+       setiap kali konten bergulir (scroll jank). */
 }
 .st-key-aog-topbar::before {
     content:""; position:absolute; top:0; left:0; right:0; height:1px; pointer-events:none;

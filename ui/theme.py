@@ -88,8 +88,8 @@ CSS = """
 
 /* Composer gelap berbentuk kapsul dengan halo RGB bergerak di belakangnya. */
 @keyframes aogComposerGlow {
-  0%,100% { filter:blur(24px) hue-rotate(0deg); opacity:.22; }
-  50% { filter:blur(30px) hue-rotate(150deg); opacity:.42; }
+  0%,100% { opacity:.22; }
+  50% { opacity:.42; }
 }
 [data-testid="stChatInput"] {
   position:relative; isolation:isolate; overflow:visible !important;
