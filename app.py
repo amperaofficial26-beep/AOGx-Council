@@ -309,23 +309,26 @@ body:has(.aog-council-chat-started) .aog-council-hero {
     line-height:1.1 !important; white-space:nowrap !important;
 }
 /* Menu pilihan mode di popover (konten ter-portal ke body, jadi selektor
-   global): ringkas — padding bawaan 24px & jarak blok 16px dirapatkan,
-   lebar dibatasi agar tidak melebar, judul rata kiri dengan ikon di ujung
-   kanan, deskripsi rapat di bawah judul barisnya. */
+   global): semua jarak internal popover dibuat nol — margin bawaan Streamlit
+   (16px per pembungkus + margin <p>) membuat pilihan terlalu jauh — lalu
+   hanya jarak baris minimal yang dipasang kembali. Judul rata kiri, ikon di
+   ujung kanan, deskripsi rapat di bawah judul barisnya. */
 [data-testid="stPopoverBody"] {
     min-width: min(230px, calc(100vw - 32px)) !important;
     max-width: min(300px, calc(100vw - 32px)) !important;
     padding: 9px 11px !important;
+    gap: 0 !important;
 }
-[data-testid="stPopoverBody"] [data-testid="stVerticalBlock"] > * {
-    margin-bottom: 2px !important;
+[data-testid="stPopoverBody"] * {
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
 }
+[data-testid="stPopoverBody"] [data-testid="stVerticalBlock"] { gap: 0 !important; }
 [data-testid="stPopoverBody"] [data-testid="stButton"] button {
     text-align: left !important;
     padding: 3px 8px !important;
     min-height: 0 !important;
 }
-[data-testid="stPopoverBody"] [data-testid="stButton"] p { margin:0 !important; }
 [data-testid="stPopoverBody"] [data-testid="stButton"] button > *,
 [data-testid="stPopoverBody"] [data-testid="stButton"] button > * > * {
     justify-content: space-between !important; width:100%;
@@ -334,7 +337,8 @@ body:has(.aog-council-chat-started) .aog-council-hero {
     font-size: 16px !important;
 }
 [data-testid="stPopoverBody"] [data-testid="stCaptionContainer"] {
-    margin-top: 1px !important; margin-bottom: 7px !important;
+    margin-top: 1px !important;
+    margin-bottom: 8px !important;
     padding-left: .5rem !important;
     font-size: .74rem !important; line-height: 1.35 !important; opacity: .8;
 }
