@@ -73,9 +73,14 @@ CSS = """
 .aog-row { display:flex; gap:8px; padding:3px 0; border-bottom:1px solid #111c2c; }
 .aog-row:last-child { border-bottom:0; }
 .aog-t { color:#3f5170; min-width:44px; }
-.aog-r { color:#e2e8f0; font-weight:600; min-width:84px; }
-.aog-s { color:#7dd3fc; min-width:118px; }
-.aog-p { color:#a3e635; min-width:72px; }
+/* Kolom role/stage/provider dipadatkan + ellipsis agar muat saat kolom kanan
+   hanya ¼ lebar (rasio 3:1); saat sempit teks memotong diri, bukan meluber. */
+.aog-r { color:#e2e8f0; font-weight:600; min-width:64px;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.aog-s { color:#7dd3fc; min-width:80px;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.aog-p { color:#a3e635; min-width:54px;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 /* Teks langkah satu baris + ellipsis agar tiap baris seragam dan ringkas;
    teks penuh tetap tersimpan di data, hanya tampilan yang dipotong. */
 .aog-x { color:#8b9bb4; flex:1; min-width:0;
