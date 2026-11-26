@@ -76,7 +76,11 @@ CSS = """
 .aog-r { color:#e2e8f0; font-weight:600; min-width:84px; }
 .aog-s { color:#7dd3fc; min-width:118px; }
 .aog-p { color:#a3e635; min-width:72px; }
-.aog-x { color:#8b9bb4; flex:1; white-space:pre-wrap; word-break:break-word; }
+/* Teks langkah satu baris + ellipsis agar tiap baris seragam dan ringkas;
+   teks penuh tetap tersimpan di data, hanya tampilan yang dipotong. */
+.aog-x { color:#8b9bb4; flex:1; min-width:0;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.aog-row.aog-empty .aog-x { white-space:normal; word-break:break-word; }
 .aog-bad .aog-x, .aog-bad .aog-r { color:#fca5a5; }
 .aog-empty { opacity:.65; }
 

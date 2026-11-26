@@ -364,7 +364,7 @@ class CouncilFlow:
                 f'<span class="aog-r">{_esc(e["role"])}</span>'
                 f'<span class="aog-s">{_esc(e["stage"])}</span>'
                 f'<span class="aog-p">{_esc(e["provider"])}</span>'
-                f'<span class="aog-x">{_esc(e["text"])}</span></div>')
+                f'<span class="aog-x">{_esc(_clip(e["text"], 100))}</span></div>')
         if not rows:
             rows.append('<div class="aog-row aog-empty"><span class="aog-x">'
                         'Belum ada langkah. Kirim pertanyaan untuk melihat prosesnya secara langsung.'
