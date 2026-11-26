@@ -1,6 +1,6 @@
 """AOGx-Council: diskusi multi-agen AI dengan orchestrator dan penyaringan jawaban berlapis.
 
-AOGx Agent Code menampilkan workspace chat dan mesin proses; AOGx Council berisi chat minimal.
+AOGx Agent Code menampilkan workspace chat, mesin proses, dan mode BUILD; AOGx Council berisi chat minimal.
 """
 import base64
 import difflib
@@ -21,7 +21,7 @@ from core.utils import clip, extract_json
 from providers.github import (
     GitHubClient, GitHubError, make_oauth_state, verify_oauth_state, exchange_oauth_code,
 )
-from ui import machine, neural, theme, thinking
+from ui import neural, theme, thinking
 from ui.build_page import render_build_page
 from ui.flow import CouncilFlow
 
@@ -74,7 +74,6 @@ def render_topbar():
     pages = [
         ("Council", "AOGx Council", ":material/home:"),
         ("Agent code", "AOGx Agent Code", ":material/code:"),
-        ("Build", "AOGx Build", ":material/build:"),
         ("Privacy", "Privacy Policy", ":material/policy:"),
         ("Help", "Help & Fallback", ":material/help:"),
         ("Account", "Kartu Akun", ":material/account_circle:"),
@@ -123,15 +122,17 @@ st.set_page_config(page_title="AOGx Council", page_icon=":material/hub:", layout
                    initial_sidebar_state="collapsed")
 
 st.markdown(theme.CSS, unsafe_allow_html=True)
-st.markdown(machine.CSS, unsafe_allow_html=True)
 st.markdown(thinking.CSS, unsafe_allow_html=True)
 st.markdown("""
 <style>
-/* Dasar hitam dengan cahaya aurora lembut yang perlahan berubah warna. */
+/* Dasar hitam dengan cahaya aurora lembut yang perlahan bergeser.
+   Performa: filter (blur+hue-rotate) TIDAK dianimasikan — menganimasikan filter
+   memaksa browser merender ulang seluruh lapisan (seukuran layar) tiap frame.
+   Blur kini statis (dirender sekali); yang bergerak hanya transform (GPU). */
 @keyframes aogAmbientShift {
-  0% { transform:translate3d(-2%,-1%,0) scale(1); filter:blur(74px) hue-rotate(0deg); }
-  50% { transform:translate3d(2%,2%,0) scale(1.08); filter:blur(92px) hue-rotate(115deg); }
-  100% { transform:translate3d(-1%,3%,0) scale(1.03); filter:blur(80px) hue-rotate(235deg); }
+  0% { transform:translate3d(-2%,-1%,0) scale(1); }
+  50% { transform:translate3d(2%,2%,0) scale(1.08); }
+  100% { transform:translate3d(-1%,3%,0) scale(1.03); }
 }
 .stApp {
   position:relative; isolation:isolate; background-color:#020409 !important;
@@ -143,7 +144,8 @@ st.markdown("""
     radial-gradient(ellipse 36% 40% at 82% 24%,rgba(139,92,246,.34),transparent 72%),
     radial-gradient(ellipse 46% 40% at 52% 84%,rgba(236,72,153,.24),transparent 74%),
     radial-gradient(ellipse 30% 36% at 8% 80%,rgba(249,115,22,.20),transparent 72%);
-  opacity:.68; animation:aogAmbientShift 28s ease-in-out infinite alternate;
+  filter:blur(82px); opacity:.68;
+  animation:aogAmbientShift 28s ease-in-out infinite alternate;
 }
 [data-testid="stAppViewContainer"] {
   position:relative !important; isolation:isolate !important; z-index:0 !important;
@@ -154,7 +156,7 @@ st.markdown("""
   background-color:transparent !important;
 }
 @media (prefers-reduced-motion: reduce) {
-  .stApp::before { animation:none !important; filter:blur(82px) hue-rotate(80deg); }
+  .stApp::before { animation:none !important; filter:blur(82px); }
 }
 .block-container { padding-top: 3px !important; padding-bottom: 1rem; max-width: 1840px; }
 [data-testid="stAppViewBlockContainer"] { padding-top: 0 !important; }
@@ -263,13 +265,13 @@ body:has(.aog-council-chat-started) .aog-council-hero {
     radial-gradient(ellipse at 10% 52%,rgba(255,105,72,.76) 0%,rgba(255,129,83,.3) 34%,transparent 68%),
     radial-gradient(ellipse at 90% 48%,rgba(76,137,255,.82) 0%,rgba(110,82,255,.32) 36%,transparent 70%),
     radial-gradient(ellipse at 50% 54%,rgba(173,77,255,.25) 0%,transparent 70%);
-  filter:blur(34px) hue-rotate(0deg); opacity:.38; pointer-events:none;
+  filter:blur(34px); opacity:.38; pointer-events:none;
   animation:aogCouncilGlowColors 10s ease-in-out infinite;
 }
 @keyframes aogCouncilGlowColors {
-  0%,100% { filter:blur(34px) hue-rotate(0deg); opacity:.34; }
-  33% { filter:blur(34px) hue-rotate(75deg); opacity:.42; }
-  66% { filter:blur(34px) hue-rotate(195deg); opacity:.46; }
+  0%,100% { opacity:.34; }
+  33% { opacity:.42; }
+  66% { opacity:.46; }
 }
 /* Compact composer footer: one mode pill + icon-only new chat, not a full-width toolbar. */
 .st-key-composer-controls { margin-top:.2rem !important; }
@@ -399,7 +401,9 @@ body:not(:has(.st-key-council-chat-column)) [data-testid="stLayoutWrapper"]:has(
     background:linear-gradient(180deg,rgba(10,15,25,.97),rgba(7,12,20,.93)) !important;
     border:0 !important; border-bottom:1px solid rgba(148,163,184,.16) !important;
     box-shadow:0 10px 34px rgba(0,0,0,.38), inset 0 -1px rgba(255,255,255,.02) !important;
-    -webkit-backdrop-filter:blur(22px) saturate(150%); backdrop-filter:blur(22px) saturate(150%);
+    /* backdrop-filter dihapus: latar topbar sudah ~95% opak sehingga efeknya
+       nyaris tak terlihat, tapi memaksa browser memblur area di belakangnya
+       setiap kali konten bergulir (scroll jank). */
 }
 .st-key-aog-topbar::before {
     content:""; position:absolute; top:0; left:0; right:0; height:1px; pointer-events:none;
@@ -856,9 +860,9 @@ ss.setdefault("n_requests", 0)
 ss.setdefault("agent_code_messages", [])
 ss.setdefault("agent_code_n_requests", 0)
 ss.setdefault("agent_code_mode", "Seimbang")
-if ss.agent_code_mode not in ("Seimbang", "Mendalam"):
+if ss.agent_code_mode not in ("Seimbang", "Mendalam", "BUILD"):
     ss.agent_code_mode = "Seimbang"
-if ss.get("agent_code_mode_pick") not in (None, "Seimbang", "Mendalam"):
+if ss.get("agent_code_mode_pick") not in (None, "Seimbang", "Mendalam", "BUILD"):
     ss.pop("agent_code_mode_pick", None)
 ss.setdefault("agent_code_mode_pick", ss.agent_code_mode)
 ss.setdefault("council_mode", "Normal")
@@ -874,6 +878,11 @@ if ss.get("council_mode_pick") not in ("Normal", "Flash"):
 # Re-evaluate current credentials each rerun instead of preserving a stale demo flag.
 ss.demo = not bool(active_provider_names)
 ss.setdefault("active_topbar_page", "AOGx Council")
+# Migrasi sesi lama: halaman Build terpisah menjadi mode BUILD di AOGx Agent Code.
+if ss.get("active_topbar_page") == "AOGx Build":
+    ss["active_topbar_page"] = "AOGx Agent Code"
+    ss["agent_code_mode"] = "BUILD"
+    ss["agent_code_mode_pick"] = "BUILD"
 
 
 def history_text(messages, pairs: int = 3) -> str:
@@ -1623,6 +1632,7 @@ MODE_HELP = {
     "Cepat": "1 putaran, tanpa verifikasi",
     "Seimbang": "2 putaran + verifikasi",
     "Mendalam": "3 putaran + verifikasi ketat (kuota lebih banyak)",
+    "BUILD": "bantu-buat-aplikasi dari satu perintah (Tahap 1)",
 }
 
 
@@ -1648,7 +1658,7 @@ def render_composer_controls(mode: str, messages: list, is_agent_code_page: bool
                             use_container_width=True):
                 if is_agent_code_page:
                     st.radio(
-                        "Kedalaman diskusi", ("Seimbang", "Mendalam"),
+                        "Kedalaman diskusi", ("Seimbang", "Mendalam", "BUILD"),
                         key="agent_code_mode_pick", on_change=pick_mode,
                         format_func=lambda name: "Menengah" if name == "Seimbang" else name,
                         label_visibility="collapsed",
@@ -2105,10 +2115,6 @@ active = [] if demo else active_provider_names
 # The Council page is the minimal chat; Agent Code receives the full Council workspace.
 render_topbar()
 current_page = ss.active_topbar_page
-if current_page == "AOGx Build":
-    # Halaman BUILD berdiri sendiri (build/ + ui/build_page.py); pipeline Council tidak diubah.
-    render_build_page(router=router, ss=ss)
-    st.stop()
 if current_page not in ("AOGx Council", "AOGx Agent Code"):
     st.stop()
 is_agent_code_page = current_page == "AOGx Agent Code"
@@ -2118,7 +2124,12 @@ if is_agent_code_page:
     active_request_count_key = "agent_code_n_requests"
     active_flow_key = "agent_code_flow"
     mode = ss.agent_code_mode
-    left, right = st.columns([2, 2], gap="medium")
+    if mode == "BUILD":
+        # Mode BUILD: wizard build/ tampil selebar penuh; mesin Council dilewati.
+        left = st.container()
+        right = None
+    else:
+        left, right = st.columns([2, 2], gap="medium")
 else:
     active_messages_key = "messages"
     active_request_count_key = "n_requests"
@@ -2135,13 +2146,15 @@ cfg = (config.MODES.get(mode) or config.MODES.get("Seimbang")
 
 # Council's process visualization remains in Agent Code, while chat stays available on both pages.
 flow = ss.get(active_flow_key)
-if flow is None:
+# Mode BUILD tidak memakai mesin Council; alur placeholder hanya dibuat untuk mode diskusi
+# agar chip "Mode" tidak menampilkan "BUILD" setelah pengguna kembali ke Seimbang/Mendalam.
+if flow is None and mode != "BUILD":
     flow = CouncilFlow(mode_name=mode, rounds=cfg["rounds"], verify=cfg["verify"],
                        max_retries=cfg["max_retries"])
     flow.preview()
 ss[active_flow_key] = flow
 
-if is_agent_code_page:
+if is_agent_code_page and right is not None:
     with right:
         st.markdown(":material/hub: **Mesin proses**")
         ph_chips = st.empty()
@@ -2156,7 +2169,7 @@ else:
 
 
 def draw(redraw_log: bool = True):
-    if not is_agent_code_page:
+    if not is_agent_code_page or right is None:
         return
     ph_chips.markdown(theme.panel(flow.render_chips() + theme.LEGEND), unsafe_allow_html=True)
     neural.show(ph_graph, flow, graph_cache)
@@ -2171,6 +2184,12 @@ draw()
 CHAT_TAIL = '<div style="height:64px"></div>'
 
 with left:
+    if is_agent_code_page and mode == "BUILD":
+        # Mode BUILD: wizard build tampil selebar penuh; mesin Council dilewati.
+        # Pemilih mode tetap dirender agar pengguna bisa kembali ke Seimbang/Mendalam.
+        render_composer_controls(mode, messages, is_agent_code_page)
+        render_build_page(router=router, ss=ss)
+        st.stop()
     # Agent Code keeps a fixed-height transcript; Council fills its transcript slot only after the first message.
     if is_agent_code_page:
         chat_box = st.container(height=700, border=False, key="chat-history")
