@@ -737,8 +737,10 @@ body:not(:has(.st-key-council-chat-column)) [data-testid="stLayoutWrapper"]:has(
     width: 100% !important;
     box-sizing: border-box !important;
 }
+/* Jejak langkah dibuat ringkas: cukup ~10 baris terakhir, sisanya digulir di
+   dalam kotak — supaya kolom kanan tidak memanjang jauh di bawah area chat. */
 .st-key-council-lower-panels .aog-log {
-    max-height: 680px;
+    max-height: 240px;
 }
 /* Let the conversation fill the viewport so the composer lines up near the page bottom. */
 .st-key-chat-history,
