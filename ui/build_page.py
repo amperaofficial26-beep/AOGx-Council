@@ -5,6 +5,7 @@ Modul ini hanya lapisan tampilan; logika jatah ada di build/limits.py dan pipeli
 build/pipeline.py. Tidak ada pembuatan kode aplikasi di tahap ini.
 """
 from datetime import datetime
+from html import escape as html_escape
 
 import streamlit as st
 
@@ -15,6 +16,7 @@ from build import limits as build_limits
 from build import pipeline as build_pipeline
 from core.utils import clip
 from ui import thinking
+from ui.build_style import CSS as BUILD_CSS
 
 # Bentuk aplikasi yang ditawarkan pada langkah 2 (teks sesuai spesifikasi).
 FORM_KINDS = ["Web Application", "Streamlit + GitHub", "Raw Source Code",
@@ -51,27 +53,111 @@ def resolve_user_key(ss) -> str:
     return "anon:" + anon
 
 
-def _step_indicator(current: str) -> None:
+def _step_pos(current: str) -> int:
+    """Posisi langkah saat ini; "error" dianggap bagian tahap proses."""
     keys = [k for k, _ in STEP_ORDER]
-    # "error" dianggap bagian dari tahap proses agar indikator tidak crash.
-    pos = keys.index(current) if current in keys else keys.index("running")
-    parts = []
-    for idx, (key, label) in enumerate(STEP_ORDER, 1):
-        if idx - 1 == pos:
-            parts.append(f"**{idx}. {label}**")
-        elif idx - 1 < pos:
-            parts.append(f":material/check_circle: {idx}. {label}")
-        else:
-            parts.append(f"{idx}. {label}")
-    st.caption(" › ".join(parts))
+    return keys.index(current) if current in keys else keys.index("running")
 
 
-def _summary_lines(ss) -> None:
-    st.markdown(f"**Permintaan:** {clip(str(ss.get('build_request') or ''), 400)}")
-    refs = list(ss.get("build_refs") or [])
-    ref_text = ", ".join(refs) if refs else "AI yang menentukan"
-    st.markdown(f"**Referensi:** {ref_text}")
-    st.markdown(f"**Bentuk aplikasi:** {ss.get('build_form_kind') or '-'}")
+def _step_flow(current: str) -> None:
+    """Baris kartu langkah bergaya referensi: angka besar + label, aktif bersudut emas."""
+    pos = _step_pos(current)
+    tiles = []
+    for idx, (_key, label) in enumerate(STEP_ORDER):
+        cls = "bld-step"
+        if idx == pos:
+            cls += " is-current"
+        elif idx < pos:
+            cls += " is-done"
+        tiles.append(
+            f'<div class="{cls}"><span class="bld-step-num">{idx + 1}</span>'
+            f'<span class="bld-step-label">{html_escape(label)}</span></div>'
+        )
+    st.markdown('<div class="bld-flow">' + "".join(tiles) + "</div>",
+                unsafe_allow_html=True)
+
+
+def _render_header(ss, step: str) -> None:
+    """Kepala halaman: orb + wordmark + pil permintaan (kanan atas, gaya referensi)."""
+    request = clip(str(ss.get("build_request") or ""), 90)
+    pill = request or "Belum ada permintaan"
+    st.markdown(
+        '<div class="bld-head">'
+        '<span class="bld-orb"></span>'
+        '<div class="bld-wordmark">'
+        "<strong>AOGx <em>Build</em></strong>"
+        "<small>Tahap 1 · Perancang blueprint</small>"
+        "</div>"
+        f'<span class="bld-pill" title="{html_escape(pill)}">{html_escape(pill)}</span>'
+        "</div>",
+        unsafe_allow_html=True,
+    )
+
+
+def _render_side_panel(ss, step: str) -> None:
+    """Panel ringkasan di kanan: judul langkah, badge status, kartu jatah, ubin statistik."""
+    pos = _step_pos(step)
+    label = STEP_ORDER[pos][1]
+    try:
+        quota = build_limits.limit_status(resolve_user_key(ss))
+    except Exception:
+        quota = {"used": 0, "max": 0, "remaining": 0, "backend": "",
+                 "reset_at": "", "error": ""}
+    used = int(quota.get("used") or 0)
+    maximum = int(quota.get("max") or 0)
+    remaining = int(quota.get("remaining") or 0)
+    reset = str(quota.get("reset_at") or "-")
+    res = ss.get("build_result") or {}
+    refs = list(ss.get("build_refs") or []) or list(ss.get("build_refs_pick") or [])
+    form_kind = str(ss.get("build_form_kind") or res.get("form_kind") or "")
+    request = clip(str(ss.get("build_request") or res.get("request") or ""), 260)
+    ref_text = ", ".join(str(r) for r in refs) if refs else "AI yang menentukan"
+    sources = len(res.get("sources") or [])
+    attempts = int(ss.get("build_attempts") or 0)
+    quota_badge = "Aman" if remaining > 0 else "Habis"
+    quota_cls = "" if remaining > 0 else " is-warn"
+    if step == "result":
+        meta = f"Selesai {html_escape(str(ss.get('build_finished_at') or '-'))}"
+    else:
+        meta = f"Reset jatah {html_escape(reset)}"
+    st.markdown(
+        '<div class="bld-panel">'
+        '<div class="bld-kicker">AOGx Build · Tahap 1</div>'
+        f'<div class="bld-title">{html_escape(label)}</div>'
+        '<div class="bld-status">'
+        f'<span class="bld-badge is-soft">Langkah {pos + 1}/{len(STEP_ORDER)}</span>'
+        f'<span class="bld-meta">{meta}</span>'
+        "</div>"
+        '<div class="bld-subcard">'
+        '<div class="bld-subcard-head"><span>Status jatah</span>'
+        f'<span class="bld-badge{quota_cls}">{quota_badge}</span></div>'
+        f'<div class="bld-big">{remaining}</div>'
+        f'<div class="bld-sub">terpakai {used} dari {maximum} BUILD · '
+        f"penyimpanan: {html_escape(_backend_label(quota.get('backend', '')))}</div>"
+        "</div>"
+        '<div class="bld-stats">'
+        f'<div class="bld-stat"><div class="bld-stat-num">{used}</div>'
+        '<div class="bld-stat-label">BUILD terpakai</div></div>'
+        f'<div class="bld-stat"><div class="bld-stat-num">{len(refs)}</div>'
+        '<div class="bld-stat-label">Referensi dipilih</div></div>'
+        f'<div class="bld-stat"><div class="bld-stat-num">{attempts}/'
+        f"{config.BUILD_MAX_REPAIR_ATTEMPTS}</div>"
+        '<div class="bld-stat-label">Percobaan proses</div></div>'
+        f'<div class="bld-stat"><div class="bld-stat-num">{sources}</div>'
+        '<div class="bld-stat-label">Sumber unik</div></div>'
+        "</div>"
+        '<div class="bld-sec-head">Ringkasan</div>'
+        '<div class="bld-note">'
+        '<div class="bld-row"><span>Permintaan</span>'
+        f"<p>{html_escape(request) or 'Belum ada permintaan.'}</p></div>"
+        '<div class="bld-row"><span>Referensi</span>'
+        f"<p>{html_escape(ref_text)}</p></div>"
+        '<div class="bld-row"><span>Bentuk aplikasi</span>'
+        f"<p>{html_escape(form_kind) or '-'}</p></div>"
+        "</div>"
+        "</div>",
+        unsafe_allow_html=True,
+    )
 
 
 def _step_request(router, ss) -> None:
@@ -161,7 +247,6 @@ def _step_reference(ss) -> None:
 
 def _step_form(ss) -> None:
     st.markdown("### :material/widgets: Langkah 3 — Bentuk aplikasi")
-    _summary_lines(ss)
     st.radio("Bentuk aplikasi yang diinginkan", FORM_KINDS, key="build_form_pick",
              help="Menentukan rancangan pengiriman hasil pada tahap berikutnya.")
     col_back, col_next = st.columns(2)
@@ -188,7 +273,6 @@ def _backend_label(backend: str) -> str:
 
 def _step_confirm(router, ss) -> None:
     st.markdown("### :material/speed: Langkah 4 — Verifikasi limit")
-    _summary_lines(ss)
     user_key = resolve_user_key(ss)
     quota = build_limits.limit_status(user_key)
     # Kalimat verifikasi wajib persis seperti spesifikasi:
@@ -246,7 +330,6 @@ def _log_markdown(events: list) -> str:
 
 def _step_running(router, ss) -> None:
     st.markdown("### :material/rocket_launch: Proses BUILD")
-    _summary_lines(ss)
     ss["build_attempts"] = int(ss.get("build_attempts") or 0) + 1
     request = str(ss.get("build_request") or "")
     refs = list(ss.get("build_refs") or [])
@@ -285,7 +368,6 @@ def _step_running(router, ss) -> None:
 
 def _step_error(ss) -> None:
     st.markdown("### :material/error: Proses BUILD terhenti")
-    _summary_lines(ss)
     st.error(str(ss.get("build_error") or "Pipeline berhenti tanpa hasil."))
     st.caption(f"Percobaan: {int(ss.get('build_attempts') or 0)}/"
                f"{config.BUILD_MAX_REPAIR_ATTEMPTS} · jatah sudah terpakai pada "
@@ -344,7 +426,6 @@ def _step_result(ss) -> None:
     blueprint = res.get("blueprint") or {}
     st.markdown("### :material/task: Langkah 6 — Hasil BUILD (Tahap 1)")
     st.success(f"Blueprint siap: **{blueprint.get('nama') or '(nama belum tersusun)'}**")
-    _summary_lines(ss)
     st.caption(
         f"Selesai: {ss.get('build_finished_at') or '-'} · provider: "
         f"{', '.join(res.get('providers') or []) or '-'} · "
@@ -388,29 +469,39 @@ def _step_result(ss) -> None:
 
 
 def render_build_page(router, ss=None) -> None:
-    """Titik masuk mode BUILD (dalam AOGx Agent Code) dari app.py."""
+    """Titik masuk mode BUILD (dalam AOGx Agent Code) dari app.py.
+
+    Tata letak mengikuti referensi: kanvas gelap berisi kepala halaman + pil
+    konteks, kolom utama (kartu langkah + wizard) dan panel ringkasan di kanan.
+    """
     ss = ss if ss is not None else st.session_state
     ss.setdefault("build_step", "request")
-    st.markdown(":material/build: **AOGx Build**")
-    st.caption("Beri satu perintah, tim agen meneliti aplikasi referensi, menganalisis "
-               "kekurangannya, lalu menyusun blueprint aplikasi alternatif. Tahap ini belum "
-               "membuat kode aplikasi.")
-    _step_indicator(str(ss.get("build_step") or "request"))
+    st.markdown(BUILD_CSS, unsafe_allow_html=True)
     step = str(ss.get("build_step") or "request")
-    if step == "request":
-        _step_request(router, ss)
-    elif step == "reference":
-        _step_reference(ss)
-    elif step == "form":
-        _step_form(ss)
-    elif step == "confirm":
-        _step_confirm(router, ss)
-    elif step == "running":
-        _step_running(router, ss)
-    elif step == "error":
-        _step_error(ss)
-    elif step == "result":
-        _step_result(ss)
-    else:
-        ss["build_step"] = "request"
-        st.rerun()
+    with st.container(key="build-page"):
+        _render_header(ss, step)
+        st.caption("Beri satu perintah, tim agen meneliti aplikasi referensi, menganalisis "
+                   "kekurangannya, lalu menyusun blueprint aplikasi alternatif. Tahap ini belum "
+                   "membuat kode aplikasi.")
+        main_col, side_col = st.columns([6.9, 3.1], gap="medium")
+        with main_col, st.container(key="build-main"):
+            _step_flow(step)
+            if step == "request":
+                _step_request(router, ss)
+            elif step == "reference":
+                _step_reference(ss)
+            elif step == "form":
+                _step_form(ss)
+            elif step == "confirm":
+                _step_confirm(router, ss)
+            elif step == "running":
+                _step_running(router, ss)
+            elif step == "error":
+                _step_error(ss)
+            elif step == "result":
+                _step_result(ss)
+            else:
+                ss["build_step"] = "request"
+                st.rerun()
+        with side_col, st.container(key="build-side"):
+            _render_side_panel(ss, step)
