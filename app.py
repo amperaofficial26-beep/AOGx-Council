@@ -242,10 +242,6 @@ body:has(.aog-council-chat-started) .aog-council-hero {
 /* Let the scroll window extend behind the composer without pushing the composer down. */
 .st-key-council-chat-column .st-key-chat-history {
   margin-bottom:-130px !important;
-  -webkit-mask-image:linear-gradient(to bottom,transparent 0,black 48px,
-    black calc(100% - 90px),transparent 100%) !important;
-  mask-image:linear-gradient(to bottom,transparent 0,black 48px,
-    black calc(100% - 90px),transparent 100%) !important;
 }
 @media (min-height:1100px) {
   .st-key-council-chat-column .st-key-chat-history {
@@ -2555,7 +2551,7 @@ if question:
             # Re-render role boundaries and prevent a pending action being treated as a new submit.
             rerender_transcript(question, rerun_key)
 
-# Ruang bawah tetap setelah bubble, supaya bubble terakhir tidak terpotong fade.
+# Ruang bawah tetap setelah bubble, supaya bubble terakhir tidak menempel di tepi kotak chat.
 if chat_box is not None:
     with chat_box:
         st.markdown(CHAT_TAIL, unsafe_allow_html=True)
