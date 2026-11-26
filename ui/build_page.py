@@ -388,7 +388,7 @@ def _step_result(ss) -> None:
 
 
 def render_build_page(router, ss=None) -> None:
-    """Titik masuk halaman BUILD dari app.py."""
+    """Titik masuk mode BUILD (dalam AOGx Agent Code) dari app.py."""
     ss = ss if ss is not None else st.session_state
     ss.setdefault("build_step", "request")
     st.markdown(":material/build: **AOGx Build**")
