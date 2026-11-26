@@ -209,7 +209,7 @@ def _render_header(ss) -> None:
 
 def _render_zoom(ss):
     with st.container(key="build-zoomrow"):
-        c1, c2, c3, c4 = st.columns([0.5, 0.5, 0.55, 8])
+        c1, c2, c3, c4 = st.columns([1.15, 1.15, 1.3, 6.4])
         with c1:
             st.button("Perbesar", key="bzoom-in", icon=":material/zoom_in:",
                       on_click=_zoom, args=(ss, "in"),
@@ -838,8 +838,10 @@ def render_build_page(router, ss=None) -> None:
                  "reset_at": "", "error": ""}
     _save_if_changed(ss)
     st.markdown(BUILD_CSS, unsafe_allow_html=True)
+    # unsafe_allow_html WAJIB: tanpa itu blok <style> tampil sebagai teks
+    # dan posisi node/zoom tidak terpasang.
     st.markdown(f"<style id='aogx-build-geom'>{node_position_css()}\n"
-                f"{zoom_css(ss)}</style>")
+                f"{zoom_css(ss)}</style>", unsafe_allow_html=True)
     with st.container(key="build-page"):
         _render_header(ss)
         st.caption("Beri satu perintah, tim agen meneliti aplikasi referensi, menganalisis "

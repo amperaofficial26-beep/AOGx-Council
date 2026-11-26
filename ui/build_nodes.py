@@ -350,9 +350,9 @@ def fit_zoom_css() -> str:
     """Zoom 'fit' per lebar layar — jaga node tetap terbaca, geser bila sempit."""
     return (
         ".st-key-build-canvas-inner{zoom:.7}\n"
-        "@media (min-width:1500px){.st-key-build-canvas-inner{zoom:.8}}\n"
-        "@media (min-width:1800px){.st-key-build-canvas-inner{zoom:.9}}\n"
-        "@media (min-width:2100px){.st-key-build-canvas-inner{zoom:1}}"
+        "@media (min-width:1360px){.st-key-build-canvas-inner{zoom:.8}}\n"
+        "@media (min-width:1620px){.st-key-build-canvas-inner{zoom:.9}}\n"
+        "@media (min-width:1880px){.st-key-build-canvas-inner{zoom:1}}"
     )
 
 
