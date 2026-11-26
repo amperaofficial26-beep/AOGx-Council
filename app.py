@@ -742,6 +742,25 @@ body:not(:has(.st-key-council-chat-column)) [data-testid="stLayoutWrapper"]:has(
 .st-key-council-lower-panels .aog-log {
     max-height: 240px;
 }
+/* Batas lebar kolom chat Agent Code: tepi kanan kolom chat berhenti sejajar
+   tombol "Privacy Policy" di topbar, sehingga Mesin proses + jejak langkah kebagian
+   sisa lebar (bukan lagi 3/4 : 1/4). Tepi kanan tombol itu selalu 50vw + 72px dari
+   tepi kiri layar (brand 264px, status 116px, gap & padding topbar saling menghapus
+   pada perhitungannya); konten halaman mulai di padding 80px (mode lebar Streamlit),
+   jadi lebar kolom chat = 50vw + 72 - 80 = 50vw - 8px. Pada ≤1280px topbar memakai
+   brand/status lebih sempit sehingga konstantanya berbeda per rentang; di 864px bawah
+   padding konten turun ke 16px (mode lebar aktif mulai 864px). Aturan hanya cocok
+   saat kolom kanan ada (mode chat); mode BUILD dan halaman Council tak tersentuh. */
+@media (min-width: 1281px) { :root { --aog-chat-col-w: calc(50vw - 8px); } }
+@media (min-width: 1101px) and (max-width: 1280px) { :root { --aog-chat-col-w: calc(50vw - 25px); } }
+@media (min-width: 981px) and (max-width: 1100px) { :root { --aog-chat-col-w: calc(50.8vw + 27px); } }
+@media (min-width: 864px) and (max-width: 980px) { :root { --aog-chat-col-w: calc(50.8vw + 13px); } }
+@media (min-width: 761px) and (max-width: 863px) { :root { --aog-chat-col-w: calc(50.8vw + 77px); } }
+@media (max-width: 760px) { :root { --aog-chat-col-w: calc(50vw + 9.5px); } }
+[data-testid="stHorizontalBlock"]:has([data-testid="stColumn"] .st-key-council-lower-panels) > [data-testid="stColumn"]:nth-child(1) {
+    flex: 0 0 var(--aog-chat-col-w, auto) !important;
+    width: var(--aog-chat-col-w, auto) !important;
+}
 /* Let the conversation fill the viewport so the composer lines up near the page bottom. */
 .st-key-chat-history,
 .st-key-chat-history [data-testid="stVerticalBlockBorderWrapper"] {
@@ -2178,6 +2197,8 @@ if is_agent_code_page:
         right = None
     else:
         # Chat ¾ lebar, mesin + jejak langkah ¼ (dulu 2:2 sekarang 3:1).
+        # Lebar akhir dibatasi CSS (--aog-chat-col-w) agar tepi chat sejajar
+        # tombol Privacy Policy; rasio di bawah ini hanya dasar sebelum CSS.
         left, right = st.columns([3, 1], gap="medium")
 else:
     active_messages_key = "messages"
