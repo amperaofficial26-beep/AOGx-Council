@@ -1,7 +1,9 @@
 """Gaya visual halaman BUILD AOGx (Tahap 1) mengikuti referensi dashboard gelap.
 
-Referensi: kanvas teal-hitam dengan alur kiri-kanan — inti (orb) → kabel → panel
-tahap kecil bertumpuk → area kerja/proses → panel identitas di paling kanan.
+Referensi: kanvas teal-hitam dengan alur kiri-kanan — inti proyek → kabel →
+tahapan → proses AI → panel identitas di paling kanan. Ditambah kanvas node
+baru (.st-key-build-canvas*, .st-key-bnode-*, .bld-pnode, .bld-edge, zoom,
+drawer) yang geometri posisinya dihitung ui/build_nodes.py.
 CSS murni dipakai lewat st.markdown(..., unsafe_allow_html=True) dari ui/build_page;
 kelas .bld-* hanya dipancarkan build_page. Tanpa blur/backdrop-filter dan tanpa
 animasi berat — ikuti aturan performa aplikasi.
@@ -66,23 +68,6 @@ CSS = """
     color: #9fb3af; font-size: 12.5px; font-weight: 600;
     padding: 8px 14px; border-radius: 999px;
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-
-/* ——— Baris graf: lapisan kabel dekoratif di belakang kolom ——— */
-.st-key-build-graph { position: relative; }
-.bld-cables {
-    position: absolute; left: 0; top: 0; width: 100%; height: 100%;
-    pointer-events: none; z-index: 0; overflow: visible;
-}
-.bld-cables path { fill: none; stroke: url(#bldCableGrad); stroke-width: 1.6;
-    stroke-linecap: round; }
-.st-key-build-graph [data-testid="stHorizontalBlock"] {
-    position: relative; z-index: 1;
-}
-/* Markdown pembawa kabel tidak boleh menyisakan slot gap. */
-.st-key-build-graph [data-testid="stElementContainer"]:has(.bld-cables) {
-    height: 0 !important; min-height: 0 !important; margin: 0 !important;
-    overflow: visible !important;
 }
 
 /* ——— Zona inti (paling kiri): orb + nama proyek + chip jatah ——— */
@@ -446,6 +431,141 @@ CSS = """
 @media (max-width: 1000px) {
     .st-key-build-identity { position: static !important; }
     .bld-pill { max-width: 40%; }
+}
+
+/* ===================== KANVAS NODE (baru) ===================== */
+/* ================= Kanvas & kerangka halaman ================= */
+.st-key-build-page{background:
+  radial-gradient(900px 420px at 12% -10%, rgba(20,183,163,.07), transparent 60%),
+  radial-gradient(700px 380px at 88% 110%, rgba(224,180,110,.05), transparent 60%);
+  padding-top:.4rem;padding-bottom:2rem}
+.st-key-build-graph{gap:.9rem}
+.st-key-build-canvas{overflow-x:auto;overflow-y:hidden;border:1px dashed #1f2b45;
+  border-radius:16px;background:
+  radial-gradient(rgba(148,163,184,.09) 1px, transparent 1.5px);
+  background-size:26px 26px;padding:10px 12px;margin-bottom:.4rem}
+.st-key-build-canvas-inner{position:relative;width:980px;height:540px;
+  transform-origin:0 0}
+/* Kabel SVG menempel penuh pada kanvas */
+.st-key-build-canvas-inner [data-testid="stMarkdownContainer"]:has(> .bld-cables, > .bld-wait, > .bld-live){
+  position:absolute;inset:0;margin:0;padding:0;pointer-events:none;z-index:1}
+.bld-cables{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+.bld-edge{stroke-linecap:round}
+.bld-edge.is-live{stroke-dasharray:7 9;animation:bldflow 1.1s linear infinite}
+@keyframes bldflow{to{stroke-dashoffset:-32}}
+.bld-wait{position:absolute;left:650px;top:120px;width:286px;color:#64748b;
+  font-size:.78rem;line-height:1.5;text-align:center}
+
+/* ================= Kartu node (absolut di kanvas) ================= */
+.st-key-build-canvas-inner [class*="st-key-bnode-"]{
+  position:absolute!important;margin:0!important;z-index:3;
+  background:linear-gradient(180deg, rgba(17,25,40,.92), rgba(13,20,33,.94));
+  border:1.5px solid #2a3550;border-radius:14px;padding:8px 12px 10px;
+  box-shadow:0 8px 22px rgba(0,0,0,.28);
+  transition:border-color .2s, box-shadow .2s, transform .15s}
+.st-key-build-canvas-inner [class*="st-key-bnode-"]:hover{
+  border-color:rgba(224,180,110,.55);transform:translateY(-1px)}
+.st-key-build-canvas-inner [class*="st-key-bnode-"] p{margin:0;
+  font-size:.8rem;line-height:1.4}
+/* Tombol transparan menindih seluruh kartu → klik node alami */
+.st-key-build-canvas-inner [class*="st-key-bnode-"] > div[data-testid="stButton"]{
+  position:absolute!important;inset:0;margin:0!important;z-index:4}
+.st-key-build-canvas-inner [class*="st-key-bnode-"] > div[data-testid="stButton"] button{
+  width:100%;height:100%;min-height:100%;padding:0!important;margin:0!important;
+  background:transparent!important;border:0!important;color:transparent!important;
+  font-size:0!important;box-shadow:none!important}
+.st-key-build-canvas-inner [class*="st-key-bnode-"] > div[data-testid="stButton"] button:hover,
+.st-key-build-canvas-inner [class*="st-key-bnode-"] > div[data-testid="stButton"] button:active{
+  background:rgba(224,180,110,.06)!important;border:0!important}
+.st-key-build-canvas-inner [class*="st-key-bnode-"]:has(> div[data-testid="stButton"] button:focus-visible){
+  outline:2px solid #38bdf8;outline-offset:2px}
+
+/* Status kartu (penanda .bld-st di dalam HTML kartu) */
+.st-key-build-canvas-inner [class*="st-key-bnode-"]:has(.bld-st.is-processing),
+.bld-pnode.is-processing{border-color:#38bdf8;
+  box-shadow:0 0 16px rgba(56,189,248,.35);animation:bldpulse 1.6s ease-in-out infinite}
+.st-key-build-canvas-inner [class*="st-key-bnode-"]:has(.bld-st.is-active),
+.bld-pnode.is-active{border-color:#e0b46e;box-shadow:0 0 18px rgba(224,180,110,.38)}
+.st-key-build-canvas-inner [class*="st-key-bnode-"]:has(.bld-st.is-completed),
+.bld-pnode.is-completed{border-color:#34d399}
+.st-key-build-canvas-inner [class*="st-key-bnode-"]:has(.bld-st.is-failed),
+.bld-pnode.is-failed{border-color:#f87171;box-shadow:0 0 16px rgba(248,113,113,.3)}
+.st-key-build-canvas-inner [class*="st-key-bnode-"]:has(.bld-st.is-idle),
+.bld-pnode.is-idle{border-color:#3f4d6b}
+@keyframes bldpulse{0%,100%{box-shadow:0 0 6px rgba(56,189,248,.22)}
+  50%{box-shadow:0 0 24px rgba(56,189,248,.55)}}
+
+/* Isi kartu */
+.bld-st{display:inline-block;font-size:.66rem;font-weight:700;letter-spacing:.06em;
+  text-transform:uppercase;padding:1px 8px;border-radius:999px;margin-bottom:4px;
+  background:rgba(100,116,139,.18);color:#94a3b8;border:1px solid rgba(148,163,184,.25)}
+.bld-st.is-processing{background:rgba(56,189,248,.14);color:#7dd3fc;border-color:rgba(56,189,248,.45)}
+.bld-st.is-active{background:rgba(224,180,110,.14);color:#eec27c;border-color:rgba(224,180,110,.5)}
+.bld-st.is-completed{background:rgba(52,211,153,.13);color:#6ee7b7;border-color:rgba(52,211,153,.45)}
+.bld-st.is-failed{background:rgba(248,113,113,.14);color:#fca5a5;border-color:rgba(248,113,113,.5)}
+.bld-st.is-idle{background:rgba(100,116,139,.16);color:#94a3b8}
+.bld-node-head{display:flex;align-items:center;gap:7px;margin-bottom:2px}
+.bld-node-no{flex:0 0 auto;width:20px;height:20px;border-radius:6px;font-size:.72rem;
+  font-weight:700;display:flex;align-items:center;justify-content:center;
+  background:rgba(100,116,139,.2);color:#94a3b8;border:1px solid rgba(148,163,184,.3)}
+.bld-node-no.is-active{background:rgba(224,180,110,.18);color:#eec27c;border-color:rgba(224,180,110,.5)}
+.bld-node-no.is-processing{background:rgba(56,189,248,.16);color:#7dd3fc;border-color:rgba(56,189,248,.5)}
+.bld-node-no.is-completed{background:rgba(52,211,153,.15);color:#6ee7b7;border-color:rgba(52,211,153,.45)}
+.bld-node-no.is-failed{background:rgba(248,113,113,.16);color:#fca5a5;border-color:rgba(248,113,113,.5)}
+.bld-node-name{font-size:.84rem;font-weight:700;color:#e6edf7;letter-spacing:.01em}
+.bld-node-sub{font-size:.72rem;color:#8b98ad;margin-top:3px!important}
+.bld-node-meta{font-size:.66rem;color:#64748b;margin-top:2px}
+.bld-node-info{font-size:.68rem;color:#a9b6c9;margin-top:3px;line-height:1.45;
+  display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.bld-core-name{font-size:.92rem;font-weight:800;color:#f2f6fc;margin-top:4px;
+  word-break:break-word}
+.bld-core-sub{font-size:.7rem;color:#8b98ad;margin-top:3px}
+.bld-core-sub b{color:#c9d4e4}
+.st-key-bnode-core{border-color:#3f4d6b;background:
+  radial-gradient(120% 120% at 20% 0%, rgba(56,189,248,.10), transparent 55%),
+  linear-gradient(180deg, rgba(17,25,40,.94), rgba(13,20,33,.96))!important}
+.st-key-bnode-core .bld-st{font-size:.62rem}
+/* Ikon Material di HTML murni (layer live) */
+.bld-mi{font-family:"Material Symbols Rounded";font-weight:400;font-style:normal;
+  font-size:17px;line-height:1;letter-spacing:normal;text-transform:none;
+  display:inline-block;white-space:nowrap;word-wrap:normal;direction:ltr;
+  font-feature-settings:"liga";-webkit-font-feature-settings:"liga";
+  font-variation-settings:normal;color:#7dd3fc;vertical-align:-3px}
+
+/* Node proses layer live (HTML absolut, tanpa tombol) */
+.bld-live{position:absolute;inset:0;z-index:2;pointer-events:none}
+.bld-pnode{position:absolute;box-sizing:border-box;
+  background:linear-gradient(180deg, rgba(17,25,40,.92), rgba(13,20,33,.94));
+  border:1.5px solid #2a3550;border-radius:14px;padding:8px 12px 10px;
+  box-shadow:0 8px 22px rgba(0,0,0,.28)}
+
+/* Bar zoom */
+.st-key-build-zoomrow{display:flex;align-items:center;gap:.4rem;margin:.1rem 0 .5rem}
+.st-key-build-zoomrow [data-testid="stButton"]{display:inline-block}
+.st-key-build-zoomrow [data-testid="stButton"] button{
+  padding:.22rem .6rem!important;font-size:.76rem!important;height:auto!important;
+  background:rgba(17,25,40,.7)!important;border:1px solid #2a3550!important;
+  color:#aab7c9!important;box-shadow:none!important}
+.st-key-build-zoomrow [data-testid="stButton"] button:hover{
+  border-color:#e0b46e!important;color:#eec27c!important}
+.st-key-build-zoomrow p{font-size:.74rem;color:#64748b}
+
+/* ================= Drawer detail di bawah kanvas ================= */
+.st-key-build-drawer{background:rgba(13,20,33,.78);border:1px solid #1f2b45;
+  border-radius:16px;padding:.7rem 1.1rem 1rem;margin-top:.2rem}
+.st-key-build-drawer h2,.st-key-build-drawer h3{font-size:1rem!important;
+  color:#e8eef7;margin:.2rem 0 .45rem!important;letter-spacing:.02em}
+.st-key-build-drawer [data-testid="stVerticalBlock"]{gap:.55rem}
+.st-key-build-drawer .st-key-build-tabs [data-baseweb="tab-list"]{
+  background:rgba(10,16,27,.85);border:1px solid #1f2b45;border-radius:10px;padding:3px}
+.st-key-build-drawer [data-testid="stTabs"] [data-baseweb="tab"]{
+  color:#9fb0c7;font-size:.78rem;padding:.3rem .7rem}
+.st-key-build-drawer [data-testid="stTabs"] [aria-selected="true"]{color:#eec27c}
+
+@media (prefers-reduced-motion:reduce){
+  .bld-edge.is-live{animation:none}
+  .bld-pnode.is-processing,[class*="st-key-bnode-"]:has(.bld-st.is-processing){animation:none}
+  .st-key-build-canvas-inner [class*="st-key-bnode-"]{transition:none}
 }
 </style>
 """
