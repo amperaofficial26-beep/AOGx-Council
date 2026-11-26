@@ -443,9 +443,13 @@ CSS = """
 .st-key-build-canvas{overflow-x:auto;overflow-y:hidden;border:1px dashed #1f2b45;
   border-radius:16px;background:
   radial-gradient(rgba(148,163,184,.09) 1px, transparent 1.5px);
-  background-size:26px 26px;padding:10px 12px;margin-bottom:.4rem}
-.st-key-build-canvas-inner{position:relative;width:980px;height:540px;
-  transform-origin:0 0}
+  background-size:26px 26px;padding:10px 12px;margin-bottom:.4rem;
+  flex:0 0 auto!important}
+/* !important + flex:none: layout internal Streamlit memakai flex-basis:0 /
+   height:100% inline pada block — tanpa ini kanvas kolaps (isi absolut tidak
+   memberi tinggi, semua node terpotong). */
+.st-key-build-canvas-inner{position:relative;width:980px!important;
+  height:540px!important;flex:0 0 auto!important;transform-origin:0 0}
 /* Kabel SVG menempel penuh pada kanvas */
 .st-key-build-canvas-inner [data-testid="stMarkdownContainer"]:has(> .bld-cables, > .bld-wait, > .bld-live){
   position:absolute;inset:0;margin:0;padding:0;pointer-events:none;z-index:1}
@@ -458,7 +462,8 @@ CSS = """
 
 /* ================= Kartu node (absolut di kanvas) ================= */
 .st-key-build-canvas-inner [class*="st-key-bnode-"]{
-  position:absolute!important;margin:0!important;z-index:3;
+  position:absolute!important;height:auto!important;flex:0 0 auto!important;
+  margin:0!important;z-index:3;
   background:linear-gradient(180deg, rgba(17,25,40,.92), rgba(13,20,33,.94));
   border:1.5px solid #2a3550;border-radius:14px;padding:8px 12px 10px;
   box-shadow:0 8px 22px rgba(0,0,0,.28);
