@@ -308,8 +308,20 @@ body:has(.aog-council-chat-started) .aog-council-hero {
     margin:0 !important; font-size:.74rem !important; font-weight:600 !important;
     line-height:1.1 !important; white-space:nowrap !important;
 }
-.st-key-composer-mode [data-testid="stRadio"] label { font-size:.8rem !important; }
-.st-key-composer-mode [data-testid="stCaptionContainer"] { font-size:.7rem !important; opacity:.75; }
+/* Menu pilihan mode di popover (konten ter-portal ke body, jadi selektor
+   global): baris seperti referensi — judul rata kiri, ikon di ujung kanan,
+   deskripsi menempel di bawah judul barisnya. */
+[data-testid="stPopoverBody"] { min-width: min(320px, calc(100vw - 32px)); }
+[data-testid="stPopoverBody"] [data-testid="stButton"] button { text-align: left !important; }
+[data-testid="stPopoverBody"] [data-testid="stButton"] p { margin:0 !important; }
+[data-testid="stPopoverBody"] [data-testid="stButton"] button > *,
+[data-testid="stPopoverBody"] [data-testid="stButton"] button > * > * {
+    justify-content: space-between !important; width:100%;
+}
+[data-testid="stPopoverBody"] [data-testid="stCaptionContainer"] {
+    margin-top:-.15rem !important; margin-bottom:.55rem !important;
+    padding-left:.5rem !important; font-size:.78rem !important; opacity:.8;
+}
 .st-key-composer-new-chat button,
 .st-key-council-voice button {
     width:36px !important; min-width:36px !important; height:34px !important; min-height:34px !important;
@@ -1635,9 +1647,21 @@ MODE_HELP = {
     "BUILD": "bantu-buat-aplikasi dari satu perintah (Tahap 1)",
 }
 
+# Ikon Material untuk tiap baris menu mode (ikon muncul di ujung kanan baris).
+MODE_ICONS = {
+    "Normal": ":material/verified:",
+    "Flash": ":material/flash_on:",
+    "Seimbang": ":material/balance:",
+    "Mendalam": ":material/psychology:",
+    "BUILD": ":material/build:",
+}
 
-def pick_mode():
-    ss.agent_code_mode = ss.agent_code_mode_pick
+
+def pick_mode(mode: str | None = None):
+    selected = mode or ss.get("agent_code_mode_pick")
+    if selected in ("Seimbang", "Mendalam", "BUILD"):
+        ss.agent_code_mode = selected
+        ss.agent_code_mode_pick = selected
 
 
 def pick_council_mode(mode: str | None = None):
@@ -1656,20 +1680,26 @@ def render_composer_controls(mode: str, messages: list, is_agent_code_page: bool
             label = "Menengah" if mode == "Seimbang" else mode
             with st.popover(label, icon=":material/tune:", help="Pilih mode",
                             use_container_width=True):
-                if is_agent_code_page:
-                    st.radio(
-                        "Kedalaman diskusi", ("Seimbang", "Mendalam", "BUILD"),
-                        key="agent_code_mode_pick", on_change=pick_mode,
-                        format_func=lambda name: "Menengah" if name == "Seimbang" else name,
-                        label_visibility="collapsed",
+                # Menu baris (bukan radio) mengikuti referensi: judul + ikon di
+                # ujung kanan, deskripsi kecil di bawah judul, baris terpilih
+                # ditandai tombol sekunder; sisanya tombol tersier (polos).
+                options = (
+                    ("Seimbang", "Mendalam", "BUILD") if is_agent_code_page
+                    else ("Normal", "Flash")
+                )
+                for name in options:
+                    display = "Menengah" if name == "Seimbang" else name
+                    st.button(
+                        f"**{display}**",
+                        key=f"{'agent' if is_agent_code_page else 'council'}-mode-{name}",
+                        icon=MODE_ICONS.get(name, ":material/tune:"),
+                        icon_position="right",
+                        type="secondary" if name == mode else "tertiary",
+                        use_container_width=True,
+                        on_click=pick_mode if is_agent_code_page else pick_council_mode,
+                        args=(name,),
                     )
-                else:
-                    st.radio(
-                        "Mode jawaban", ("Normal", "Flash"),
-                        key="council_mode_pick", on_change=pick_council_mode,
-                        label_visibility="collapsed",
-                    )
-                st.caption(MODE_HELP.get(mode, ""))
+                    st.caption(MODE_HELP.get(name, ""))
         with new_col, st.container(key="composer-new-chat"):
             st.button(
                 "Chat baru", key="agent-code-new-chat" if is_agent_code_page else "council-new-chat",
