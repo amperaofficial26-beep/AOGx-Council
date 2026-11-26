@@ -58,6 +58,26 @@ create table if not exists build_limits (
 );
 ```
 
+Snapshot status proyek BUILD (langkah, referensi, blueprint, log) juga disimpan di Supabase
+supaya tidak hilang saat halaman dimuat ulang — buat sekali di SQL Editor:
+```sql
+create table if not exists build_projects (
+  user_key text primary key,
+  data jsonb not null default '{}'::jsonb,
+  updated_at timestamptz not null default now()
+);
+```
+Nama tabel bisa diganti lewat env `BUILD_PROJECTS_TABLE`. Tanpa Supabase, snapshot jatuh ke
+memori proses (bertahan selama server hidup; sesi baru memulai proyek kosong).
+
+Tampilan BUILD berupa **kanvas jaringan node**: inti proyek → tahapan (Permintaan, Referensi,
+Bentuk, Validasi, Hasil — node berikutnya hanya muncul setelah prasyaratnya selesai) → proses
+kerja AI (Penelitian Referensi, Analisis Referensi, Perancangan Blueprint — cermin event
+pipeline nyata, tanpa angka progres karangan) → panel Identitas & File di kanan (unduh
+blueprint JSON + berkas sumber). Klik node membuka drawer detail di bawah kanvas; kabel
+berubah warna mengikuti status (abu menunggu, cyan berjalan, hijau selesai, emas aktif,
+merah gagal). Zoom in/out/Sesuaikan + geser horizontal bila layar sempit.
+
 ## Jalankan lokal
 ```
 pip install -r requirements.txt

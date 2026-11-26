@@ -1,9 +1,16 @@
-"""Halaman BUILD AOGx (Tahap 1): dialog referensi & bentuk aplikasi, verifikasi limit,
-lalu pipeline RESEARCH + ANALISIS + PRODUCT PLANNING dengan tampilan hasil bersumber.
+"""Halaman BUILD AOGx (Tahap 1): kanvas jaringan node + dialog referensi,
+verifikasi limit, lalu pipeline RESEARCH + ANALISIS + PRODUCT PLANNING.
 
-Modul ini hanya lapisan tampilan; logika jatah ada di build/limits.py dan pipeline di
-build/pipeline.py. Tidak ada pembuatan kode aplikasi di tahap ini.
+Alur visual kiri → kanan: INTI PROYEK → TAHAPAN (Permintaan, Referensi,
+Bentuk, Validasi, Hasil — node berikutnya hanya muncul setelah prasyaratnya
+selesai) → PROSES KERJA AI (cermin event pipeline nyata; tanpa angka progres
+karangan) → panah ke panel IDENTITAS & FILE di paling kanan. Klik node membuka
+drawer detail di bawah kanvas. Modul ini lapisan tampilan; jatah di
+build/limits.py, pipeline di build/pipeline.py, snapshot proyek di
+build/project_store.py. Tidak ada pembuatan kode aplikasi di tahap ini.
 """
+import json
+import uuid
 from datetime import datetime
 from html import escape as html_escape
 
@@ -14,9 +21,16 @@ from agent.build_interview import DEFAULT_REFERENCES, suggest
 from agent.build_research import TOPICS
 from build import limits as build_limits
 from build import pipeline as build_pipeline
+from build import project_store
 from core.utils import clip
 from ui import thinking
-from ui.build_style import CABLES, CSS as BUILD_CSS
+from ui.build_nodes import (
+    FLOW_POS, PREP_NODES, STAGES,
+    cables_svg, compute_edges, core_html, live_layer_html,
+    live_stage_from_text, node_position_css, prep_html, prep_status,
+    prep_summary, process_nodes, proc_html, zoom_css,
+)
+from ui.build_style import CSS as BUILD_CSS
 
 # Bentuk aplikasi yang ditawarkan pada langkah 2 (teks sesuai spesifikasi).
 FORM_KINDS = ["Web Application", "Streamlit + GitHub", "Raw Source Code",
@@ -44,7 +58,6 @@ def resolve_user_key(ss) -> str:
         return "gh:" + str(gh["login"]).strip().lower()
     anon = ss.get("build_anon_id")
     if not anon:
-        import uuid
         anon = uuid.uuid4().hex
         try:
             ss["build_anon_id"] = anon
@@ -59,33 +72,127 @@ def _step_pos(current: str) -> int:
     return keys.index(current) if current in keys else keys.index("running")
 
 
-def _steps_html(current: str) -> str:
-    """Kolom panel tahap (gaya kartu kecil referensi): muncul progresif — panel
-    langkah ke-N baru tampil setelah langkah sebelumnya selesai; aktif = emas."""
-    pos = _step_pos(current)
-    cards = []
-    for idx, (_key, label) in enumerate(STEP_ORDER):
-        if idx > pos:
-            break
-        state = "is-current" if idx == pos else "is-done"
-        badge = "aktif" if idx == pos else "selesai"
-        cards.append(
-            f'<div class="bld-stepcard {state}">'
-            '<span class="bld-step-dot"></span>'
-            '<span class="bld-step-body">'
-            f'<span class="bld-step-num">{idx + 1}</span>'
-            f'<span class="bld-step-label">{html_escape(label)}</span>'
-            "</span>"
-            f'<span class="bld-step-state">{badge}</span>'
-            "</div>"
-        )
-    return ('<div class="bld-zone-kicker">Tahapan</div>'
-            '<div class="bld-steps"><span class="bld-spine"></span>'
-            + "".join(cards) + "</div>")
+def _now_stamp() -> str:
+    return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
 
+# ---------------------------------------------------------------------------
+# Persistensi proyek (best-effort — lihat build/project_store.py)
+# ---------------------------------------------------------------------------
+def _restore_once(ss):
+    """Muat snapshot proyek sekali per sesi baru (bila Supabase/memori punya)."""
+    if ss.get("_bproj_loaded"):
+        return
+    ss["_bproj_loaded"] = True
+    if ss.get("build_step") is not None:
+        return  # sesi sudah punya state sendiri
+    try:
+        user_key = resolve_user_key(ss)
+    except Exception:
+        return
+    data, err = project_store.load_project(user_key)
+    if err:
+        ss["build_persist_notice"] = err
+    if data:
+        project_store.restore_into(ss, data)
+
+
+def _save_if_changed(ss):
+    """Simpan snapshot hanya bila berubah (kanvas → store saat langkah berganti)."""
+    snap = project_store.snapshot_from(ss)
+    if not snap:
+        return
+    if set(snap) <= {"build_step"} and snap.get("build_step") == "request" \
+            and not ss.get("_bproj_wipe"):
+        return  # sesi kosong — jangan menulis baris percuma
+    sig = json.dumps(snap, sort_keys=True, default=str, ensure_ascii=False)
+    if sig == ss.get("_bproj_sig"):
+        return
+    ss["_bproj_sig"] = sig
+    try:
+        user_key = resolve_user_key(ss)
+    except Exception:
+        return
+    err = project_store.save_project(user_key, snap)
+    if err:
+        ss["build_persist_notice"] = err
+    else:
+        ss.pop("build_persist_notice", None)
+    ss.pop("_bproj_wipe", None)
+
+
+# ---------------------------------------------------------------------------
+# State graf & penyegaran live saat pipeline berjalan
+# ---------------------------------------------------------------------------
+def _graph(ss, step, quota, events=None, live="", error=None):
+    """Bangun node tahapan + node proses + daftar tepi untuk satu render."""
+    if events is None:
+        events = ss.get("build_log") or []
+    if error is None:
+        error = ss.get("build_error") or ""
+    prep = []
+    for i, node in enumerate(PREP_NODES, start=1):
+        status = prep_status(i, step)
+        if status:
+            prep.append({**node, "i": i, "status": status,
+                         "summary": prep_summary(i, ss, quota)})
+    proc = process_nodes(events, live_text=live, error=error)
+    edges = compute_edges(prep, proc)
+    return prep, proc, edges
+
+
+def _live_refresh(ss, quota, events, live_text, proc_ph, cables_ph):
+    """Perbarui layer node proses + kabel di tengah satu run pipeline."""
+    if proc_ph is not None:
+        proc_ph.markdown(live_layer_html(events, live_text),
+                         unsafe_allow_html=True)
+    if cables_ph is not None:
+        _, _, edges = _graph(ss, "running", quota, events=events,
+                             live=live_text, error="")
+        cables_ph.markdown(cables_svg(edges), unsafe_allow_html=True)
+
+
+# ---------------------------------------------------------------------------
+# Klik node / zoom (callback Streamlit — rerun alami setelah callback)
+# ---------------------------------------------------------------------------
+def _open_step(ss, target: str):
+    ss["build_step"] = target
+    ss["build_node_sel"] = None
+
+
+def _select_node(ss, node_id: str):
+    ss["build_node_sel"] = node_id
+
+
+def _clear_sel(ss):
+    ss["build_node_sel"] = None
+
+
+def _zoom(ss, mode: str):
+    if mode == "fit":
+        ss["build_zoom"] = None
+        return
+    try:
+        z = float(ss.get("build_zoom") or 1.0)
+    except (TypeError, ValueError):
+        z = 1.0
+    z = z + 0.15 if mode == "in" else z - 0.15
+    ss["build_zoom"] = round(min(1.5, max(0.55, z)), 2)
+
+
+def _backend_label(backend: str) -> str:
+    if backend == "supabase":
+        return "Supabase"
+    if backend == "memory":
+        return "memori"
+    return "memori (Supabase belum dikonfigurasi)"
+
+
+# ---------------------------------------------------------------------------
+# Kepala halaman, zoom, node inti, node tahapan, zona proses
+# ---------------------------------------------------------------------------
 def _render_header(ss) -> None:
-    """Kepala halaman: wordmark + pil permintaan (kanan atas, gaya referensi)."""
+    """Kepala halaman: wordmark + pil permintaan (gaya referensi)."""
     request = clip(str(ss.get("build_request") or ""), 90)
     pill = request or "Belum ada permintaan"
     st.markdown(
@@ -100,28 +207,78 @@ def _render_header(ss) -> None:
     )
 
 
-def _render_core(ss, quota: dict) -> None:
-    """Zona inti paling kiri: orb + nama proyek + chip jatah (gaya orb referensi)."""
-    name = clip(str(ss.get("build_request") or ""), 90) or "Belum ada permintaan"
-    remaining = int(quota.get("remaining") or 0)
-    maximum = int(quota.get("max") or 0)
-    sisa_cls = "bld-chip" if remaining > 0 else "bld-chip is-warn"
-    st.markdown(
-        '<div class="bld-zone-kicker">Inti proyek</div>'
-        '<div class="bld-core">'
-        '<span class="bld-orb"></span>'
-        f'<div class="bld-core-name">{html_escape(name)}</div>'
-        '<div class="bld-core-badges">'
-        f'<span class="{sisa_cls}">Sisa {remaining}/{maximum}</span>'
-        '<span class="bld-chip is-gold">Tahap 1</span>'
-        "</div>"
-        "</div>",
-        unsafe_allow_html=True,
-    )
+def _render_zoom(ss):
+    with st.container(key="build-zoomrow"):
+        c1, c2, c3, c4 = st.columns([0.5, 0.5, 0.55, 8])
+        with c1:
+            st.button("Perbesar", key="bzoom-in", icon=":material/zoom_in:",
+                      on_click=_zoom, args=(ss, "in"),
+                      help="Perbesar tampilan kanvas")
+        with c2:
+            st.button("Perkecil", key="bzoom-out", icon=":material/zoom_out:",
+                      on_click=_zoom, args=(ss, "out"),
+                      help="Perkecil tampilan kanvas")
+        with c3:
+            st.button("Sesuaikan", key="bzoom-fit", icon=":material/fit_screen:",
+                      on_click=_zoom, args=(ss, "fit"),
+                      help="Paskan kanvas ke lebar layar")
+        with c4:
+            st.caption("Geser kanvas bila sempit — node dijaga tetap terbaca, "
+                       "bukan diperkecil tanpa batas")
 
 
+def _render_core(ss, step, quota):
+    with st.container(key="bnode-core"):
+        st.markdown(":material/hub: **INTI PROYEK**")
+        st.markdown(core_html(ss, step, quota), unsafe_allow_html=True)
+        st.button("Ringkasan proyek", key="btn-core",
+                  on_click=_select_node, args=(ss, "core"),
+                  help="Buka ringkasan proyek")
+
+
+def _render_prep(ss, step, quota):
+    for i, node in enumerate(PREP_NODES, start=1):
+        status = prep_status(i, step)
+        if not status:
+            continue  # prasyarat belum terpenuhi → node tidak ditampilkan
+        with st.container(key=f"bnode-{node['id']}"):
+            st.markdown(f":material/{node['icon']}: "
+                        f"**{node['no']}. {node['name']}**")
+            st.markdown(prep_html(node, status, prep_summary(i, ss, quota)),
+                        unsafe_allow_html=True)
+            st.button(node["btn"], key=f"btn-{node['id']}",
+                      on_click=_open_step, args=(ss, node["step"]),
+                      help=f"Buka {node['name']}")
+
+
+def _render_process_zone(ss, step, proc):
+    """Zona C: layer live saat berjalan, kartu proses nyata setelahnya."""
+    if step == "running":
+        proc_ph = st.empty()
+        proc_ph.markdown(live_layer_html(ss.get("build_log") or [], ""),
+                         unsafe_allow_html=True)
+        return proc_ph
+    if proc:
+        for node in proc:
+            with st.container(key=f"bnode-{node['id']}"):
+                st.markdown(f":material/{node['icon']}: "
+                            f"**{node['no']}. {node['name']}**")
+                st.markdown(proc_html(node), unsafe_allow_html=True)
+                st.button(node["name"], key=f"btn-{node['id']}",
+                          on_click=_select_node, args=(ss, node["id"]),
+                          help=f"Detail {node['name']}")
+    else:
+        st.markdown('<div class="bld-wait">Proses kerja AI muncul di sini '
+                    'setelah tahap Validasi dijalankan.</div>',
+                    unsafe_allow_html=True)
+    return None
+
+
+# ---------------------------------------------------------------------------
+# Zona D — Identitas & File (panel kanan, permanen)
+# ---------------------------------------------------------------------------
 def _render_identity(ss, step: str, quota: dict) -> None:
-    """Panel paling kanan: identitas aplikasi + statistik + berkas/sumber."""
+    """Panel paling kanan: identitas aplikasi + status pembangunan + berkas."""
     pos = _step_pos(step)
     label = STEP_ORDER[pos][1]
     used = int(quota.get("used") or 0)
@@ -150,6 +307,20 @@ def _render_identity(ss, step: str, quota: dict) -> None:
         meta = f"Reset jatah {html_escape(reset)}"
         head_badge = f"Langkah {pos + 1}/{len(STEP_ORDER)}"
         head_cls = "bld-badge is-soft"
+    # Status pembangunan (angka nyata dari state; tanpa progres karangan).
+    prep_done = sum(1 for i in range(1, 5)
+                    if prep_status(i, step) == "completed")
+    if step == "result":
+        prep_done = 5
+    proc_list = process_nodes(ss.get("build_log"),
+                              error=ss.get("build_error") or "")
+    proc_done = sum(1 for n in proc_list if n["status"] == "completed")
+    tekh = blueprint.get("teknologi")
+    if isinstance(tekh, (list, tuple)):
+        tekh = ", ".join(str(t) for t in tekh)
+    tekh = clip(str(tekh or "-"), 70)
+    versi = ("Tahap 1 · blueprint" if blueprint
+             else "-")
     if sources:
         file_rows = "".join(
             f'<a class="bld-file" href="{html_escape(str(s.get("url") or ""))}" '
@@ -192,6 +363,22 @@ def _render_identity(ss, step: str, quota: dict) -> None:
         f'<div class="bld-stat"><div class="bld-stat-num">{len(sources)}</div>'
         '<div class="bld-stat-label">Sumber unik</div></div>'
         "</div>"
+        '<div class="bld-sec-head">Status pembangunan</div>'
+        '<div class="bld-note">'
+        f'<div class="bld-row"><span>Tahapan</span><p>{prep_done}/5 selesai · '
+        f"tahap {pos + 1}/{len(STEP_ORDER)} — {html_escape(label)}</p></div>"
+        f'<div class="bld-row"><span>Proses AI</span><p>{proc_done}/3 selesai'
+        "</p></div>"
+        '<div class="bld-row"><span>File aplikasi</span><p>0 · Tahap 2 belum '
+        "berjalan</p></div>"
+        '<div class="bld-row"><span>Status uji</span><p>Belum — Tahap 2 '
+        "(Pengujian)</p></div>"
+        f'<div class="bld-row"><span>ID proyek</span><p>{html_escape(str(ss.get("build_project_id") or "-"))}</p></div>'
+        f'<div class="bld-row"><span>Dibuat / selesai</span><p>{html_escape(str(ss.get("build_started_at") or "-"))} · '
+        f'{html_escape(str(ss.get("build_finished_at") or "-"))}</p></div>'
+        f'<div class="bld-row"><span>Versi aplikasi</span><p>{html_escape(versi)}</p></div>'
+        f'<div class="bld-row"><span>Teknologi</span><p>{html_escape(tekh)}</p></div>'
+        "</div>"
         '<div class="bld-sec-head">Ringkasan</div>'
         '<div class="bld-note">'
         '<div class="bld-row"><span>Permintaan</span>'
@@ -206,8 +393,125 @@ def _render_identity(ss, step: str, quota: dict) -> None:
         "</div>",
         unsafe_allow_html=True,
     )
+    # Berkas hasil NYATA: blueprint JSON bisa diunduh begitu tersimpan.
+    if blueprint:
+        st.download_button(
+            "Unduh blueprint (.json)",
+            data=json.dumps(blueprint, ensure_ascii=False, indent=2),
+            file_name="blueprint_aogx_build.json", mime="application/json",
+            key="bld-dl-bp", icon=":material/download:",
+            help="Simpan hasil blueprint sebagai berkas")
+    proj_backend = "Supabase" if project_store.get_store() else "memori sesi"
+    notice = ss.get("build_persist_notice")
+    st.caption(f"Penyimpanan proyek: {proj_backend}" +
+               (f" · {notice}" if notice else ""))
 
 
+# ---------------------------------------------------------------------------
+# Drawer detail di bawah kanvas (klik node → isi di sini)
+# ---------------------------------------------------------------------------
+def _drawer_core(ss, step, quota):
+    res = ss.get("build_result") or {}
+    bp = res.get("blueprint") or {}
+    prep_done = sum(1 for i in range(1, 5)
+                    if prep_status(i, step) == "completed")
+    if step == "result":
+        prep_done = 5
+    proc_list = process_nodes(ss.get("build_log"),
+                              error=ss.get("build_error") or "")
+    proc_done = sum(1 for n in proc_list if n["status"] == "completed")
+    st.markdown("### :material/hub: Ringkasan proyek")
+    st.markdown(
+        '<div class="bld-note">'
+        '<div class="bld-row"><span>Permintaan</span><p>'
+        f"{html_escape(clip(str(ss.get('build_request') or '-'), 120))}</p></div>"
+        '<div class="bld-row"><span>Bentuk</span><p>'
+        f"{html_escape(str(ss.get('build_form_kind') or '-'))}</p></div>"
+        '<div class="bld-row"><span>Referensi</span><p>'
+        f"{len(ss.get('build_refs') or ss.get('build_refs_pick') or [])} dipilih</p></div>"
+        '<div class="bld-row"><span>Blueprint</span><p>'
+        f"{html_escape(clip(str(bp.get('nama') or 'belum ada'), 70))}</p></div>"
+        '<div class="bld-row"><span>Progres nyata</span><p>'
+        f"{prep_done}/5 tahapan · {proc_done}/3 proses AI</p></div>"
+        '<div class="bld-row"><span>Jatah</span><p>'
+        f"{int(quota.get('used') or 0)}/{int(quota.get('max') or 0)} terpakai · "
+        f"sisa {int(quota.get('remaining') or 0)}</p></div>"
+        '<div class="bld-row"><span>ID proyek</span><p>'
+        f"{html_escape(str(ss.get('build_project_id') or '-'))}</p></div>"
+        "</div>",
+        unsafe_allow_html=True,
+    )
+    st.button("Tutup ringkasan", key="bnode-drawer-close",
+              on_click=_clear_sel, args=(ss,), icon=":material/close:")
+
+
+def _drawer_process(ss, node_id: str):
+    events = ss.get("build_log") or []
+    error = ss.get("build_error") or ""
+    nodes = process_nodes(events, error=error)
+    node = next((n for n in nodes if n["id"] == node_id), None)
+    if node is None:
+        st.info("Proses ini belum dimulai.")
+        return
+    stage = next(s for s in STAGES if s["id"] == node_id)
+    agent = next((e for e in events
+                  if e.get("kind") == "agent"
+                  and e.get("stage") == stage["stage"]), None)
+    logs = [e for e in events
+            if e.get("kind") == "status"
+            and live_stage_from_text(e.get("text", "")) == stage["stage"]]
+    st.markdown(f"### :material/{stage['icon']}: "
+                f"{stage['no']}. {stage['name']}")
+    st.markdown(proc_html(node), unsafe_allow_html=True)
+    if agent is not None:
+        meta = " · ".join(x for x in (
+            clip(str(agent.get("role") or ""), 24),
+            clip(str(agent.get("provider") or ""), 24),
+            str(agent.get("t") or "")) if x)
+        if meta:
+            st.caption(f"Dihasilkan {meta}")
+        st.markdown(str(agent.get("text") or ""))
+    if node["status"] == "failed" and error:
+        st.error(error)
+    if logs:
+        with st.expander("Log tahap"):
+            for entry in logs:
+                st.caption(str(entry.get("text") or ""))
+    st.button("Tutup", key="bnode-drawer-close",
+              on_click=_clear_sel, args=(ss,), icon=":material/close:")
+
+
+def _render_drawer(router, ss, step, quota, proc_ph, cables_ph):
+    if ss.get("_bnode_seen_step") != step:
+        ss["_bnode_seen_step"] = step
+        ss["build_node_sel"] = None
+    sel = ss.get("build_node_sel") or ""
+    if sel == "core":
+        _drawer_core(ss, step, quota)
+        return
+    if sel and sel[:2] in ("p1", "p2", "p3"):
+        _drawer_process(ss, sel)
+        return
+    # Konten langkah aktif (form pengguna — dipisah dari aktivitas AI).
+    if step == "reference":
+        _step_reference(ss)
+    elif step == "form":
+        _step_form(ss)
+    elif step == "confirm":
+        _step_confirm(router, ss)
+    elif step == "running":
+        _step_running(router, ss, quota, proc_ph, cables_ph)
+    elif step == "error":
+        _step_error(ss)
+    elif step == "result":
+        _step_result(ss)
+    else:
+        _step_request(router, ss)
+
+
+# ---------------------------------------------------------------------------
+# Langkah persiapan (form pengguna)
+# ---------------------------------------------------------------------------
 def _step_request(router, ss) -> None:
     st.markdown("### :material/edit_note: Langkah 1 — Permintaan aplikasi")
     st.caption("Tuliskan satu perintah. AI belum membuat apa pun; setelah ini AI menanyakan "
@@ -230,6 +534,8 @@ def _step_request(router, ss) -> None:
         ss["build_result"] = None
         ss["build_log"] = []
         ss["build_attempts"] = 0
+        ss.setdefault("build_project_id", uuid.uuid4().hex[:12])
+        ss.setdefault("build_started_at", _now_stamp())
         try:
             with st.spinner("AI menyusun pilihan aplikasi referensi…"):
                 out, _prov = suggest(router, request)
@@ -311,14 +617,6 @@ def _step_form(ss) -> None:
             st.rerun()
 
 
-def _backend_label(backend: str) -> str:
-    if backend == "supabase":
-        return "Supabase"
-    if backend == "memory":
-        return "memori"
-    return "memori (Supabase belum dikonfigurasi)"
-
-
 def _step_confirm(router, ss) -> None:
     st.markdown("### :material/speed: Langkah 4 — Verifikasi limit")
     user_key = resolve_user_key(ss)
@@ -367,56 +665,30 @@ def _step_confirm(router, ss) -> None:
         st.rerun()
 
 
-def _log_html(events: list, live_text: str = "") -> str:
-    """Panel proses AI kumulatif: satu panel per tahap yang sudah selesai."""
-    panels = []
-    if live_text:
-        panels.append(
-            '<div class="bld-proc is-live"><span class="bld-proc-dot"></span>'
-            '<div class="bld-proc-body"><div class="bld-proc-head">'
-            '<span class="bld-proc-stage">Sedang berjalan</span></div>'
-            f'<div class="bld-proc-text">{html_escape(clip(str(live_text), 180))}</div>'
-            "</div></div>"
-        )
-    for ev in events:
-        stage = str(ev.get("stage") or "").strip() or "Tahap"
-        role = str(ev.get("role") or "").strip()
-        provider = str(ev.get("provider") or "-")
-        role_line = " · ".join(x for x in (role, provider) if x and x != "-") or provider
-        text = clip(str(ev.get("text") or ""), 200)
-        panels.append(
-            '<div class="bld-proc"><span class="bld-proc-dot"></span>'
-            '<div class="bld-proc-body"><div class="bld-proc-head">'
-            f'<span class="bld-proc-stage">{html_escape(stage)}</span>'
-            f'<span class="bld-proc-role">{html_escape(role_line)}</span></div>'
-            f'<div class="bld-proc-text">{html_escape(text)}</div>'
-            "</div></div>"
-        )
-    if not panels:
-        return ""
-    return '<div class="bld-procs">' + "".join(panels) + "</div>"
-
-
-def _step_running(router, ss) -> None:
+def _step_running(router, ss, quota, proc_ph=None, cables_ph=None) -> None:
     st.markdown("### :material/rocket_launch: Proses BUILD")
     ss["build_attempts"] = int(ss.get("build_attempts") or 0) + 1
     request = str(ss.get("build_request") or "")
     refs = list(ss.get("build_refs") or [])
     form_kind = str(ss.get("build_form_kind") or "")
     live = st.empty()
-    log_ph = st.empty()
     events = []
     final = None
     error = None
     for ev in build_pipeline.run(router, request, refs, form_kind):
+        stamp = datetime.now().strftime("%H:%M:%S")
         if ev["kind"] == "status":
+            # Status ikut dicatat supaya kegagalan tetap punya jejak tahapnya.
+            events.append({**ev, "t": stamp})
             live.markdown(thinking.render(ev["text"]), unsafe_allow_html=True)
+            _live_refresh(ss, quota, events, str(ev.get("text") or ""),
+                          proc_ph, cables_ph)
         elif ev["kind"] == "agent":
-            events.append(ev)
+            events.append({**ev, "t": stamp})
             live.markdown(
                 thinking.render(f"{ev['stage']} selesai · {ev['role']} · {ev['provider']}"),
                 unsafe_allow_html=True)
-            log_ph.markdown(_log_html(events), unsafe_allow_html=True)
+            _live_refresh(ss, quota, events, "", proc_ph, cables_ph)
         elif ev["kind"] == "final":
             final = ev
         elif ev["kind"] == "error":
@@ -430,6 +702,7 @@ def _step_running(router, ss) -> None:
         ss["build_finished_at"] = datetime.now().strftime("%d %b %Y %H:%M")
         ss["build_step"] = "result"
         st.rerun()
+    ss["build_log"] = events          # jejak nyata sampai titik gagal
     ss["build_error"] = error or "Pipeline berhenti tanpa hasil."
     ss["build_step"] = "error"
     st.rerun()
@@ -500,10 +773,8 @@ def _step_result(ss) -> None:
         f"{', '.join(res.get('providers') or []) or '-'} · "
         f"sumber unik: {len(res.get('sources') or [])}"
     )
-    # Panel proses AI kumulatif (satu panel per tahap yang sudah selesai).
-    log_events = list(ss.get("build_log") or [])
-    if log_events:
-        st.markdown(_log_html(log_events), unsafe_allow_html=True)
+    st.caption("Rincian proses tampil sebagai node di zona PROSES KERJA AI (kanvas); "
+               "klik node untuk log & teks lengkap.")
     if st.button("BUILD baru", key="build_btn_new", icon=":material/add_task:",
                  use_container_width=False):
         # Reset state BUILD (bukan key widget yang sedang aktif, kecuali id anonim jatah).
@@ -512,8 +783,10 @@ def _step_result(ss) -> None:
                     "build_ai_ranked", "build_refs_pick", "build_ref_custom",
                     "build_ai_decide", "build_refs", "build_form_pick",
                     "build_form_kind", "build_result", "build_log", "build_error",
-                    "build_attempts", "build_finished_at"):
+                    "build_attempts", "build_finished_at", "build_node_sel",
+                    "build_project_id", "build_started_at"):
             ss.pop(key, None)
+        ss["_bproj_wipe"] = True
         ss["build_step"] = "request"
         st.rerun()
     tab_ringkasan, tab_riset, tab_analisis, tab_blueprint, tab_sumber = st.tabs(
@@ -541,52 +814,54 @@ def _step_result(ss) -> None:
             st.markdown(f"{i}. [{source.get('title') or url}]({url})")
 
 
+# ---------------------------------------------------------------------------
+# Render utama
+# ---------------------------------------------------------------------------
 def render_build_page(router, ss=None) -> None:
     """Titik masuk mode BUILD (dalam AOGx Agent Code) dari app.py.
 
-    Tata letak mengikuti referensi: alur kiri-kanan — inti (orb) → panel tahap
-    (muncul progresif) → zona kerja (form / panel proses AI kumulatif) → panel
-    identitas & berkas di paling kanan. Kabel penghubung = lapisan SVG dekoratif.
+    Tata letak: kanvas jaringan node — inti proyek → tahapan (muncul
+    progresif) → proses kerja AI (cermin event pipeline) → panah ke panel
+    identitas & file di paling kanan; drawer detail di bawah kanvas.
     """
     ss = ss if ss is not None else st.session_state
+    _restore_once(ss)
     ss.setdefault("build_step", "request")
-    st.markdown(BUILD_CSS, unsafe_allow_html=True)
     step = str(ss.get("build_step") or "request")
+    if step not in [k for k, _ in STEP_ORDER] + ["error"]:
+        ss["build_step"] = "request"
+        step = "request"
     try:
         quota = build_limits.limit_status(resolve_user_key(ss))
     except Exception:
         quota = {"used": 0, "max": 0, "remaining": 0, "backend": "",
                  "reset_at": "", "error": ""}
+    _save_if_changed(ss)
+    st.markdown(BUILD_CSS, unsafe_allow_html=True)
+    st.markdown(f"<style id='aogx-build-geom'>{node_position_css()}\n"
+                f"{zoom_css(ss)}</style>")
     with st.container(key="build-page"):
         _render_header(ss)
         st.caption("Beri satu perintah, tim agen meneliti aplikasi referensi, menganalisis "
                    "kekurangannya, lalu menyusun blueprint aplikasi alternatif. Tahap ini belum "
                    "membuat kode aplikasi.")
+        st.caption(":material/account_tree: Kanvas node: inti proyek → tahapan → proses "
+                   "kerja AI → identitas & file. Node berikutnya hanya muncul setelah "
+                   "prasyaratnya selesai; klik node untuk detail.")
+        _render_zoom(ss)
         with st.container(key="build-graph"):
-            st.markdown(CABLES, unsafe_allow_html=True)
-            core_col, steps_col, work_col, ident_col = st.columns(
-                [1.6, 2.2, 4.0, 2.2], gap="medium")
-            with core_col, st.container(key="build-core"):
-                _render_core(ss, quota)
-            with steps_col, st.container(key="build-steps-zone"):
-                st.markdown(_steps_html(step), unsafe_allow_html=True)
-            with work_col, st.container(key="build-work"):
-                if step == "request":
-                    _step_request(router, ss)
-                elif step == "reference":
-                    _step_reference(ss)
-                elif step == "form":
-                    _step_form(ss)
-                elif step == "confirm":
-                    _step_confirm(router, ss)
-                elif step == "running":
-                    _step_running(router, ss)
-                elif step == "error":
-                    _step_error(ss)
-                elif step == "result":
-                    _step_result(ss)
-                else:
-                    ss["build_step"] = "request"
-                    st.rerun()
+            canvas_col, ident_col = st.columns([7.3, 2.7], gap="medium")
+            with canvas_col:
+                with st.container(key="build-canvas"):
+                    with st.container(key="build-canvas-inner"):
+                        prep, proc, edges = _graph(ss, step, quota)
+                        cables_ph = st.empty()
+                        cables_ph.markdown(cables_svg(edges),
+                                           unsafe_allow_html=True)
+                        _render_core(ss, step, quota)
+                        _render_prep(ss, step, quota)
+                        proc_ph = _render_process_zone(ss, step, proc)
             with ident_col, st.container(key="build-identity"):
                 _render_identity(ss, step, quota)
+        with st.container(key="build-drawer"):
+            _render_drawer(router, ss, step, quota, proc_ph, cables_ph)
