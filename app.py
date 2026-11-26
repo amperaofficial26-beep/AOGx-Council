@@ -309,18 +309,34 @@ body:has(.aog-council-chat-started) .aog-council-hero {
     line-height:1.1 !important; white-space:nowrap !important;
 }
 /* Menu pilihan mode di popover (konten ter-portal ke body, jadi selektor
-   global): baris seperti referensi — judul rata kiri, ikon di ujung kanan,
-   deskripsi menempel di bawah judul barisnya. */
-[data-testid="stPopoverBody"] { min-width: min(320px, calc(100vw - 32px)); }
-[data-testid="stPopoverBody"] [data-testid="stButton"] button { text-align: left !important; }
+   global): ringkas — padding bawaan 24px & jarak blok 16px dirapatkan,
+   lebar dibatasi agar tidak melebar, judul rata kiri dengan ikon di ujung
+   kanan, deskripsi rapat di bawah judul barisnya. */
+[data-testid="stPopoverBody"] {
+    min-width: min(230px, calc(100vw - 32px)) !important;
+    max-width: min(300px, calc(100vw - 32px)) !important;
+    padding: 9px 11px !important;
+}
+[data-testid="stPopoverBody"] [data-testid="stVerticalBlock"] > * {
+    margin-bottom: 2px !important;
+}
+[data-testid="stPopoverBody"] [data-testid="stButton"] button {
+    text-align: left !important;
+    padding: 3px 8px !important;
+    min-height: 0 !important;
+}
 [data-testid="stPopoverBody"] [data-testid="stButton"] p { margin:0 !important; }
 [data-testid="stPopoverBody"] [data-testid="stButton"] button > *,
 [data-testid="stPopoverBody"] [data-testid="stButton"] button > * > * {
     justify-content: space-between !important; width:100%;
 }
+[data-testid="stPopoverBody"] [data-testid="stButton"] [data-testid="stIconMaterial"] {
+    font-size: 16px !important;
+}
 [data-testid="stPopoverBody"] [data-testid="stCaptionContainer"] {
-    margin-top:-.15rem !important; margin-bottom:.55rem !important;
-    padding-left:.5rem !important; font-size:.78rem !important; opacity:.8;
+    margin-top: 1px !important; margin-bottom: 7px !important;
+    padding-left: .5rem !important;
+    font-size: .74rem !important; line-height: 1.35 !important; opacity: .8;
 }
 .st-key-composer-new-chat button,
 .st-key-council-voice button {
