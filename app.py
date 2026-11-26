@@ -2177,7 +2177,8 @@ if is_agent_code_page:
         left = st.container()
         right = None
     else:
-        left, right = st.columns([2, 2], gap="medium")
+        # Chat ¾ lebar, mesin + jejak langkah ¼ (dulu 2:2 sekarang 3:1).
+        left, right = st.columns([3, 1], gap="medium")
 else:
     active_messages_key = "messages"
     active_request_count_key = "n_requests"
