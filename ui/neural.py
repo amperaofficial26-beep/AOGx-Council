@@ -664,7 +664,12 @@ function tooltip() {
 }
 
 // ---------- loop utama ----------
+// Throttle ~30fps: menggambar ulang kanvas penuh tiap frame 60fps membuang CPU
+// saat tidak ada yang berubah; 30fps tetap halus untuk komet & sparkle.
+let lastDraw = -1e9;
 function frame(ms) {
+  if (ms - lastDraw < 32) { requestAnimationFrame(frame); return; }
+  lastDraw = ms;
   const t = ms / 1000; if (t0 === null) t0 = t; const st = t - t0;
   const tgt = camTarget(st);
   if (tgt) { const f = calm ? 1 : .07; cam.k += (tgt.k - cam.k) * f; cam.x += (tgt.x - cam.x) * f; cam.y += (tgt.y - cam.y) * f; }
