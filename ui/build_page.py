@@ -16,7 +16,7 @@ from build import limits as build_limits
 from build import pipeline as build_pipeline
 from core.utils import clip
 from ui import thinking
-from ui.build_style import CSS as BUILD_CSS
+from ui.build_style import CABLES, CSS as BUILD_CSS
 
 # Bentuk aplikasi yang ditawarkan pada langkah 2 (teks sesuai spesifikasi).
 FORM_KINDS = ["Web Application", "Streamlit + GitHub", "Raw Source Code",
@@ -59,31 +59,37 @@ def _step_pos(current: str) -> int:
     return keys.index(current) if current in keys else keys.index("running")
 
 
-def _step_flow(current: str) -> None:
-    """Baris kartu langkah bergaya referensi: angka besar + label, aktif bersudut emas."""
+def _steps_html(current: str) -> str:
+    """Kolom panel tahap (gaya kartu kecil referensi): muncul progresif — panel
+    langkah ke-N baru tampil setelah langkah sebelumnya selesai; aktif = emas."""
     pos = _step_pos(current)
-    tiles = []
+    cards = []
     for idx, (_key, label) in enumerate(STEP_ORDER):
-        cls = "bld-step"
-        if idx == pos:
-            cls += " is-current"
-        elif idx < pos:
-            cls += " is-done"
-        tiles.append(
-            f'<div class="{cls}"><span class="bld-step-num">{idx + 1}</span>'
-            f'<span class="bld-step-label">{html_escape(label)}</span></div>'
+        if idx > pos:
+            break
+        state = "is-current" if idx == pos else "is-done"
+        badge = "aktif" if idx == pos else "selesai"
+        cards.append(
+            f'<div class="bld-stepcard {state}">'
+            '<span class="bld-step-dot"></span>'
+            '<span class="bld-step-body">'
+            f'<span class="bld-step-num">{idx + 1}</span>'
+            f'<span class="bld-step-label">{html_escape(label)}</span>'
+            "</span>"
+            f'<span class="bld-step-state">{badge}</span>'
+            "</div>"
         )
-    st.markdown('<div class="bld-flow">' + "".join(tiles) + "</div>",
-                unsafe_allow_html=True)
+    return ('<div class="bld-zone-kicker">Tahapan</div>'
+            '<div class="bld-steps"><span class="bld-spine"></span>'
+            + "".join(cards) + "</div>")
 
 
-def _render_header(ss, step: str) -> None:
-    """Kepala halaman: orb + wordmark + pil permintaan (kanan atas, gaya referensi)."""
+def _render_header(ss) -> None:
+    """Kepala halaman: wordmark + pil permintaan (kanan atas, gaya referensi)."""
     request = clip(str(ss.get("build_request") or ""), 90)
     pill = request or "Belum ada permintaan"
     st.markdown(
         '<div class="bld-head">'
-        '<span class="bld-orb"></span>'
         '<div class="bld-wordmark">'
         "<strong>AOGx <em>Build</em></strong>"
         "<small>Tahap 1 · Perancang blueprint</small>"
@@ -94,38 +100,78 @@ def _render_header(ss, step: str) -> None:
     )
 
 
-def _render_side_panel(ss, step: str) -> None:
-    """Panel ringkasan di kanan: judul langkah, badge status, kartu jatah, ubin statistik."""
+def _render_core(ss, quota: dict) -> None:
+    """Zona inti paling kiri: orb + nama proyek + chip jatah (gaya orb referensi)."""
+    name = clip(str(ss.get("build_request") or ""), 90) or "Belum ada permintaan"
+    remaining = int(quota.get("remaining") or 0)
+    maximum = int(quota.get("max") or 0)
+    sisa_cls = "bld-chip" if remaining > 0 else "bld-chip is-warn"
+    st.markdown(
+        '<div class="bld-zone-kicker">Inti proyek</div>'
+        '<div class="bld-core">'
+        '<span class="bld-orb"></span>'
+        f'<div class="bld-core-name">{html_escape(name)}</div>'
+        '<div class="bld-core-badges">'
+        f'<span class="{sisa_cls}">Sisa {remaining}/{maximum}</span>'
+        '<span class="bld-chip is-gold">Tahap 1</span>'
+        "</div>"
+        "</div>",
+        unsafe_allow_html=True,
+    )
+
+
+def _render_identity(ss, step: str, quota: dict) -> None:
+    """Panel paling kanan: identitas aplikasi + statistik + berkas/sumber."""
     pos = _step_pos(step)
     label = STEP_ORDER[pos][1]
-    try:
-        quota = build_limits.limit_status(resolve_user_key(ss))
-    except Exception:
-        quota = {"used": 0, "max": 0, "remaining": 0, "backend": "",
-                 "reset_at": "", "error": ""}
     used = int(quota.get("used") or 0)
     maximum = int(quota.get("max") or 0)
     remaining = int(quota.get("remaining") or 0)
     reset = str(quota.get("reset_at") or "-")
     res = ss.get("build_result") or {}
+    blueprint = res.get("blueprint") or {}
     refs = list(ss.get("build_refs") or []) or list(ss.get("build_refs_pick") or [])
     form_kind = str(ss.get("build_form_kind") or res.get("form_kind") or "")
     request = clip(str(ss.get("build_request") or res.get("request") or ""), 260)
     ref_text = ", ".join(str(r) for r in refs) if refs else "AI yang menentukan"
-    sources = len(res.get("sources") or [])
+    sources = list(res.get("sources") or [])
     attempts = int(ss.get("build_attempts") or 0)
     quota_badge = "Aman" if remaining > 0 else "Habis"
     quota_cls = "" if remaining > 0 else " is-warn"
+    # Judul = identitas aplikasi: nama blueprint bila sudah ada, selain itu permintaan.
+    title = (str(blueprint.get("nama") or "").strip()
+             or clip(str(ss.get("build_request") or res.get("request") or ""), 80)
+             or "Belum ada permintaan")
     if step == "result":
         meta = f"Selesai {html_escape(str(ss.get('build_finished_at') or '-'))}"
+        head_badge = "Siap"
+        head_cls = "bld-badge"
     else:
         meta = f"Reset jatah {html_escape(reset)}"
+        head_badge = f"Langkah {pos + 1}/{len(STEP_ORDER)}"
+        head_cls = "bld-badge is-soft"
+    if sources:
+        file_rows = "".join(
+            f'<a class="bld-file" href="{html_escape(str(s.get("url") or ""))}" '
+            'target="_blank" rel="noopener">'
+            '<span class="bld-file-ico"></span>'
+            f'<span class="bld-file-name">{html_escape(clip(str(s.get("title") or s.get("url") or ""), 60))}</span>'
+            "</a>"
+            for s in sources if s.get("url")
+        ) or None
+    else:
+        file_rows = None
+    files_html = (
+        f'<div class="bld-files">{file_rows}</div>' if file_rows else
+        '<div class="bld-files-empty">Berkas &amp; sumber muncul setelah proses '
+        "BUILD selesai.</div>"
+    )
     st.markdown(
         '<div class="bld-panel">'
-        '<div class="bld-kicker">AOGx Build · Tahap 1</div>'
-        f'<div class="bld-title">{html_escape(label)}</div>'
+        '<div class="bld-kicker">Identitas aplikasi</div>'
+        f'<div class="bld-title">{html_escape(title)}</div>'
         '<div class="bld-status">'
-        f'<span class="bld-badge is-soft">Langkah {pos + 1}/{len(STEP_ORDER)}</span>'
+        f'<span class="{head_cls}">{head_badge}</span>'
         f'<span class="bld-meta">{meta}</span>'
         "</div>"
         '<div class="bld-subcard">'
@@ -143,7 +189,7 @@ def _render_side_panel(ss, step: str) -> None:
         f'<div class="bld-stat"><div class="bld-stat-num">{attempts}/'
         f"{config.BUILD_MAX_REPAIR_ATTEMPTS}</div>"
         '<div class="bld-stat-label">Percobaan proses</div></div>'
-        f'<div class="bld-stat"><div class="bld-stat-num">{sources}</div>'
+        f'<div class="bld-stat"><div class="bld-stat-num">{len(sources)}</div>'
         '<div class="bld-stat-label">Sumber unik</div></div>'
         "</div>"
         '<div class="bld-sec-head">Ringkasan</div>'
@@ -155,6 +201,8 @@ def _render_side_panel(ss, step: str) -> None:
         '<div class="bld-row"><span>Bentuk aplikasi</span>'
         f"<p>{html_escape(form_kind) or '-'}</p></div>"
         "</div>"
+        '<div class="bld-sec-head">Berkas &amp; sumber</div>'
+        f"{files_html}"
         "</div>",
         unsafe_allow_html=True,
     )
@@ -319,13 +367,34 @@ def _step_confirm(router, ss) -> None:
         st.rerun()
 
 
-def _log_markdown(events: list) -> str:
-    blocks = []
+def _log_html(events: list, live_text: str = "") -> str:
+    """Panel proses AI kumulatif: satu panel per tahap yang sudah selesai."""
+    panels = []
+    if live_text:
+        panels.append(
+            '<div class="bld-proc is-live"><span class="bld-proc-dot"></span>'
+            '<div class="bld-proc-body"><div class="bld-proc-head">'
+            '<span class="bld-proc-stage">Sedang berjalan</span></div>'
+            f'<div class="bld-proc-text">{html_escape(clip(str(live_text), 180))}</div>'
+            "</div></div>"
+        )
     for ev in events:
-        blocks.append(f"**{ev.get('stage', '')}** · {ev.get('role', '')} · "
-                      f"`{ev.get('provider', '-')}`")
-        blocks.append(clip(str(ev.get("text") or ""), 900))
-    return "\n\n".join(blocks) if blocks else "_Belum ada tahap selesai._"
+        stage = str(ev.get("stage") or "").strip() or "Tahap"
+        role = str(ev.get("role") or "").strip()
+        provider = str(ev.get("provider") or "-")
+        role_line = " · ".join(x for x in (role, provider) if x and x != "-") or provider
+        text = clip(str(ev.get("text") or ""), 200)
+        panels.append(
+            '<div class="bld-proc"><span class="bld-proc-dot"></span>'
+            '<div class="bld-proc-body"><div class="bld-proc-head">'
+            f'<span class="bld-proc-stage">{html_escape(stage)}</span>'
+            f'<span class="bld-proc-role">{html_escape(role_line)}</span></div>'
+            f'<div class="bld-proc-text">{html_escape(text)}</div>'
+            "</div></div>"
+        )
+    if not panels:
+        return ""
+    return '<div class="bld-procs">' + "".join(panels) + "</div>"
 
 
 def _step_running(router, ss) -> None:
@@ -347,7 +416,7 @@ def _step_running(router, ss) -> None:
             live.markdown(
                 thinking.render(f"{ev['stage']} selesai · {ev['role']} · {ev['provider']}"),
                 unsafe_allow_html=True)
-            log_ph.markdown(_log_markdown(events))
+            log_ph.markdown(_log_html(events), unsafe_allow_html=True)
         elif ev["kind"] == "final":
             final = ev
         elif ev["kind"] == "error":
@@ -431,6 +500,10 @@ def _step_result(ss) -> None:
         f"{', '.join(res.get('providers') or []) or '-'} · "
         f"sumber unik: {len(res.get('sources') or [])}"
     )
+    # Panel proses AI kumulatif (satu panel per tahap yang sudah selesai).
+    log_events = list(ss.get("build_log") or [])
+    if log_events:
+        st.markdown(_log_html(log_events), unsafe_allow_html=True)
     if st.button("BUILD baru", key="build_btn_new", icon=":material/add_task:",
                  use_container_width=False):
         # Reset state BUILD (bukan key widget yang sedang aktif, kecuali id anonim jatah).
@@ -471,37 +544,49 @@ def _step_result(ss) -> None:
 def render_build_page(router, ss=None) -> None:
     """Titik masuk mode BUILD (dalam AOGx Agent Code) dari app.py.
 
-    Tata letak mengikuti referensi: kanvas gelap berisi kepala halaman + pil
-    konteks, kolom utama (kartu langkah + wizard) dan panel ringkasan di kanan.
+    Tata letak mengikuti referensi: alur kiri-kanan — inti (orb) → panel tahap
+    (muncul progresif) → zona kerja (form / panel proses AI kumulatif) → panel
+    identitas & berkas di paling kanan. Kabel penghubung = lapisan SVG dekoratif.
     """
     ss = ss if ss is not None else st.session_state
     ss.setdefault("build_step", "request")
     st.markdown(BUILD_CSS, unsafe_allow_html=True)
     step = str(ss.get("build_step") or "request")
+    try:
+        quota = build_limits.limit_status(resolve_user_key(ss))
+    except Exception:
+        quota = {"used": 0, "max": 0, "remaining": 0, "backend": "",
+                 "reset_at": "", "error": ""}
     with st.container(key="build-page"):
-        _render_header(ss, step)
+        _render_header(ss)
         st.caption("Beri satu perintah, tim agen meneliti aplikasi referensi, menganalisis "
                    "kekurangannya, lalu menyusun blueprint aplikasi alternatif. Tahap ini belum "
                    "membuat kode aplikasi.")
-        main_col, side_col = st.columns([6.9, 3.1], gap="medium")
-        with main_col, st.container(key="build-main"):
-            _step_flow(step)
-            if step == "request":
-                _step_request(router, ss)
-            elif step == "reference":
-                _step_reference(ss)
-            elif step == "form":
-                _step_form(ss)
-            elif step == "confirm":
-                _step_confirm(router, ss)
-            elif step == "running":
-                _step_running(router, ss)
-            elif step == "error":
-                _step_error(ss)
-            elif step == "result":
-                _step_result(ss)
-            else:
-                ss["build_step"] = "request"
-                st.rerun()
-        with side_col, st.container(key="build-side"):
-            _render_side_panel(ss, step)
+        with st.container(key="build-graph"):
+            st.markdown(CABLES, unsafe_allow_html=True)
+            core_col, steps_col, work_col, ident_col = st.columns(
+                [1.6, 2.2, 4.0, 2.2], gap="medium")
+            with core_col, st.container(key="build-core"):
+                _render_core(ss, quota)
+            with steps_col, st.container(key="build-steps-zone"):
+                st.markdown(_steps_html(step), unsafe_allow_html=True)
+            with work_col, st.container(key="build-work"):
+                if step == "request":
+                    _step_request(router, ss)
+                elif step == "reference":
+                    _step_reference(ss)
+                elif step == "form":
+                    _step_form(ss)
+                elif step == "confirm":
+                    _step_confirm(router, ss)
+                elif step == "running":
+                    _step_running(router, ss)
+                elif step == "error":
+                    _step_error(ss)
+                elif step == "result":
+                    _step_result(ss)
+                else:
+                    ss["build_step"] = "request"
+                    st.rerun()
+            with ident_col, st.container(key="build-identity"):
+                _render_identity(ss, step, quota)
